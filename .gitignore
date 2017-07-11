@@ -1,0 +1,12 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+#data and other files
+data/
+.idea/
+
+# R files
+.Rhistory
+*.html
