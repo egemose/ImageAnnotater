@@ -8,38 +8,56 @@ from gi.repository import Gtk, Gdk, GdkPixbuf
 
 class Handler:
     def __init__(self, gui_builder):
+        # named tuples used.
         self.buf_and_image = namedtuple('buf_and_image', ['buf', 'image'])
+        self.color = namedtuple('color', ['r', 'g', 'b', 'a'])
+        self.point = namedtuple('point', ('x', 'y', 'type') +
+                                self.color._fields)
+        # handles to different widgets
         self.main_window = gui_builder.get_object('main_window')
         self.overlay = gui_builder.get_object('overlay')
         self.label_zoom_level = gui_builder.get_object('zoom_level')
-        background_image = gui_builder.get_object('background_image')
-        original_image = gui_builder.get_object('original_image')
-        bw_image = gui_builder.get_object('bw_image')
-        draw_image = gui_builder.get_object('drawing_image')
-        background_buf = background_image.get_pixbuf()
-        original_buf = original_image.get_pixbuf()
-        bw_buf = bw_image.get_pixbuf()
-        draw_buf = draw_image.get_pixbuf()
-        background = self.buf_and_image(background_buf, background_image)
-        original = self.buf_and_image(original_buf, original_image)
-        bw = self.buf_and_image(bw_buf, bw_image)
-        draw = self.buf_and_image(draw_buf, draw_image)
-        self.buffers_and_images = {'background': background,
-                                   'original': original,
-                                   'bw': bw,
-                                   'draw': draw}
+        self.gtk_point_type_list = gui_builder.get_object('point_type_list')
+        self.points_type_button = gui_builder.get_object('point_types')
+        # ready the draw area
+        self.buffers_and_images = {}
+        self.init_draw_area(gui_builder)
+        # ready the point type selection
+        self.point_type_color = self.hex_color_to_rgba('#FF0000')
+        self.point_type = 'None'
+        self.gtk_point_type_list.append(['#FF0000', 'None'])
+        self.points_type_button.set_active(0)
+        # init list to store points in
+        self.point_list = []
+        # init variables for zooming
         self.scale = 1
         self.old_scale = 1
-        self.image_width = 320
-        self.image_height = 320
-        self.point_list = []
-        self.point = namedtuple('point', ['x', 'y'])
-        self.color = namedtuple('color', ['r', 'g', 'b', 'a'])
+        self.image_width = 100
+        self.image_height = 100
+        # open the image dialog to choose first image
         self.open_image_dialog()
+
+    def init_draw_area(self, gui_builder):
+        images = ['background_image',
+                  'original_image',
+                  'bw_image',
+                  'draw_image']
+        for im in images:
+            image = gui_builder.get_object(im)
+            buf = image.get_pixbuf()
+            bi = self.buf_and_image(buf, image)
+            self.buffers_and_images[im.rstrip('_image')] = bi
 
     @staticmethod
     def delete_window(*args):
         Gtk.main_quit(*args)
+
+    def hex_color_to_rgba(self, hex_color):
+        h = hex_color.lstrip('#')
+        rgb = [int(h[i:i + 2], 16)/255 for i in (0, 2, 4)]
+        rgb.append(1)
+        rgba = self.color._make(rgb)
+        return rgba
 
     def switch_images(self, button):
         original = self.buffers_and_images.get('original')
@@ -72,18 +90,33 @@ class Handler:
             bi.image.set_from_pixbuf(buf_temp)
         self.label_zoom_level.set_markup(str(self.scale))
         self.redraw_points()
-        print(self.point_list)
+
+    def point_type_changed(self, button):
+        model = button.get_model()
+        active = button.get_active()
+        if active >= 0:
+            code = model[active][0]
+            color = self.hex_color_to_rgba(code)
+            self.point_type_color = color
+            self.point_type = model[active][1]
+        else:
+            print('No point type selected')
 
     def add_point(self, event_box, event):
-        print('event at: (%f, %f)' % (event.x, event.y))
-        point = self.point(event.x, event.y)
-        self.point_list.append(point)
-        print(self.point_list)
-        self.draw_rectangle(point)
+        if event.button == 1:
+            point = self.point(event.x,
+                               event.y,
+                               self.point_type,
+                               self.point_type_color.r,
+                               self.point_type_color.g,
+                               self.point_type_color.b,
+                               self.point_type_color.a)
+            self.point_list.append(point)
+            self.draw_rectangle(point)
+        else:
+            print(event.button)
 
-    def draw_rectangle(self, point, rgba=None):
-        if rgba is None:
-            rgba = self.color(1, 0, 0, 1)
+    def draw_rectangle(self, point):
         radius = 20
         x = int(point.x - radius / 2)
         y = int(point.y - radius / 2)
@@ -95,7 +128,10 @@ class Handler:
         cr = cairo.Context(surface)
         Gdk.cairo_set_source_pixbuf(cr, draw_buf, 0, 0)
         cr.paint()
-        cr.set_source_rgba(rgba.r, rgba.g, rgba.b, rgba.a)
+        cr.set_source_rgba(point.r,
+                           point.g,
+                           point.b,
+                           point.a)
         cr.rectangle(x, y, radius, radius)
         cr.fill()
         surface = cr.get_target()
@@ -103,15 +139,14 @@ class Handler:
         draw.image.set_from_pixbuf(draw_buf)
 
     def redraw_points(self):
-        rgba = self.color(0, 0, 1, 1)
         scale_factor = self.scale / self.old_scale
         scaled_points = []
         for p in self.point_list:
             x = p.x * scale_factor
             y = p.y * scale_factor
-            new_point = self.point(x, y)
+            new_point = self.point(x, y, p.type, p.r, p.g, p.b, p.a)
             scaled_points.append(new_point)
-            self.draw_rectangle(new_point, rgba)
+            self.draw_rectangle(new_point)
         self.point_list = scaled_points
 
     @staticmethod
@@ -183,14 +218,14 @@ class Handler:
         dialog.destroy()
 
     def save_points(self, filename):
-        header = ['x', 'y']
+        header = ['x', 'y', 'type', 'red', 'green', 'blue', 'alpha']
         with open(filename, 'w') as csv_file:
             writer = csv.writer(csv_file)
             writer.writerow(header)
-            for point in self.point_list:
-                x = point.x / self.scale
-                y = point.y / self.scale
-                writer.writerow([x, y])
+            for p in self.point_list:
+                x = p.x / self.scale
+                y = p.y / self.scale
+                writer.writerow([x, y, p.type, p.r, p.g, p.b, p.a])
 
     def save_points_dialog(self, save_button):
         dialog = Gtk.FileChooserDialog("Save annotated points",
@@ -205,6 +240,31 @@ class Handler:
         if response == Gtk.ResponseType.OK:
             print("File selected: " + dialog.get_filename())
             self.save_points(dialog.get_filename())
+        elif response == Gtk.ResponseType.CANCEL:
+            pass
+        dialog.destroy()
+
+    def load_point_types(self, filename):
+        self.gtk_point_type_list.clear()
+        with open(filename, newline='') as csv_file:
+            reader = csv.reader(csv_file, delimiter=',')
+            for row in reader:
+                self.gtk_point_type_list.append(row)
+        self.points_type_button.set_active(0)
+
+    def load_point_types_dialog(self, button):
+        dialog = Gtk.FileChooserDialog("Please choose a file",
+                                       self.main_window,
+                                       Gtk.FileChooserAction.OPEN,
+                                       (Gtk.STOCK_CANCEL,
+                                        Gtk.ResponseType.CANCEL,
+                                        Gtk.STOCK_OPEN,
+                                        Gtk.ResponseType.OK))
+        self.add_text_filters(dialog)
+        response = dialog.run()
+        if response == Gtk.ResponseType.OK:
+            print("File selected: " + dialog.get_filename())
+            self.load_point_types(dialog.get_filename())
         elif response == Gtk.ResponseType.CANCEL:
             pass
         dialog.destroy()
