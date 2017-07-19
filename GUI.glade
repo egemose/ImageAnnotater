@@ -38,7 +38,7 @@
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="receives_default">True</property>
-            <signal name="clicked" handler="open_image_dialog" swapped="no"/>
+            <signal name="clicked" handler="file_dialog" swapped="no"/>
           </object>
           <packing>
             <property name="expand">False</property>
@@ -52,7 +52,7 @@
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="receives_default">True</property>
-            <signal name="clicked" handler="save_points_dialog" swapped="no"/>
+            <signal name="clicked" handler="file_dialog" swapped="no"/>
           </object>
           <packing>
             <property name="expand">False</property>
@@ -85,7 +85,7 @@
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="receives_default">True</property>
-            <signal name="clicked" handler="load_point_types_dialog" swapped="no"/>
+            <signal name="clicked" handler="file_dialog" swapped="no"/>
           </object>
           <packing>
             <property name="expand">False</property>

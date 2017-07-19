@@ -1,10 +1,27 @@
+import csv
+from collections import namedtuple
+from math import sqrt, pi
 import cairo
 import gi
-from collections import namedtuple
-import csv
-from math import sqrt, pi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gdk, GdkPixbuf
+
+
+class PointsNotSavedDialog(Gtk.Dialog):
+
+    def __init__(self, parent):
+        Gtk.Dialog.__init__(self, "Points not saved!", parent, 0,
+            (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+             Gtk.STOCK_OK, Gtk.ResponseType.OK))
+        self.set_default_size(150, 100)
+        label = Gtk.Label("The current points have not been saved.")
+        label2 = Gtk.Label('Use cancel to return and then save.')
+        label3 = Gtk.Label('Use ok to discard and continue.')
+        box = self.get_content_area()
+        box.add(label)
+        box.add(label2)
+        box.add(label3)
+        self.show_all()
 
 
 class Handler:
@@ -30,13 +47,15 @@ class Handler:
         self.points_type_button.set_active(0)
         # init list to store points in
         self.point_list = []
+        self.points_saved = True
         # init variables for zooming
         self.scale = 1
         self.old_scale = 1
         self.image_width = 100
         self.image_height = 100
         # open the image dialog to choose first image
-        self.open_image_dialog()
+        open_image_button = gui_builder.get_object('Open_image')
+        self.file_dialog(open_image_button)
 
     def init_draw_area(self, gui_builder):
         images = ['background_image',
@@ -126,6 +145,7 @@ class Handler:
         if event.button == 1:
             dist, _ = self.find_closest_point(event)
             if dist > 2*self.radius:
+                self.points_saved = False
                 point = self.point(event.x,
                                    event.y,
                                    self.point_type,
@@ -138,6 +158,7 @@ class Handler:
         elif event.button == 3:
             dist, point = self.find_closest_point(event)
             if dist < self.radius:
+                self.points_saved = False
                 self.point_list.remove(point)
                 self.clean_draw_image()
                 self.draw_circles(self.point_list)
@@ -227,50 +248,9 @@ class Handler:
         self.scale = 1
         self.image_width = new_original.buf.get_width()
         self.image_height = new_original.buf.get_height()
+        self.point_list = []
+        self.points_saved = True
         self.zoom()
-
-    def open_image_dialog(self, open_button=None):
-        dialog = Gtk.FileChooserDialog("Please choose a image",
-                                       self.main_window,
-                                       Gtk.FileChooserAction.OPEN,
-                                       (Gtk.STOCK_CANCEL,
-                                        Gtk.ResponseType.CANCEL,
-                                        Gtk.STOCK_OPEN, Gtk.ResponseType.OK))
-        self.add_image_filters(dialog)
-        response = dialog.run()
-        if response == Gtk.ResponseType.OK:
-            print("File selected: " + dialog.get_filename())
-            self.open_image(dialog.get_filename())
-        elif response == Gtk.ResponseType.CANCEL:
-            pass
-        dialog.destroy()
-
-    def save_points(self, filename):
-        header = ['x', 'y', 'type', 'red', 'green', 'blue', 'alpha']
-        with open(filename, 'w') as csv_file:
-            writer = csv.writer(csv_file)
-            writer.writerow(header)
-            for p in self.point_list:
-                x = p.x / self.scale
-                y = p.y / self.scale
-                writer.writerow([x, y, p.type, p.r, p.g, p.b, p.a])
-
-    def save_points_dialog(self, save_button):
-        dialog = Gtk.FileChooserDialog("Save annotated points",
-                                       self.main_window,
-                                       Gtk.FileChooserAction.SAVE,
-                                       (Gtk.STOCK_CANCEL,
-                                        Gtk.ResponseType.CANCEL,
-                                        Gtk.STOCK_SAVE, Gtk.ResponseType.OK))
-        dialog.set_do_overwrite_confirmation(True)
-        self.add_text_filters(dialog)
-        response = dialog.run()
-        if response == Gtk.ResponseType.OK:
-            print("File selected: " + dialog.get_filename())
-            self.save_points(dialog.get_filename())
-        elif response == Gtk.ResponseType.CANCEL:
-            pass
-        dialog.destroy()
 
     def load_point_types(self, filename):
         self.gtk_point_type_list.clear()
@@ -281,21 +261,64 @@ class Handler:
                 self.gtk_point_type_list.append(row)
         self.points_type_button.set_active(0)
 
-    def load_point_types_dialog(self, button):
-        dialog = Gtk.FileChooserDialog("Please choose a file",
+    def save_points(self, filename):
+        self.points_saved = True
+        header = ['x', 'y', 'type', 'red', 'green', 'blue', 'alpha']
+        with open(filename, 'w') as csv_file:
+            writer = csv.writer(csv_file)
+            writer.writerow(header)
+            for p in self.point_list:
+                x = p.x / self.scale
+                y = p.y / self.scale
+                writer.writerow([x, y, p.type, p.r, p.g, p.b, p.a])
+
+    def file_dialog(self, button):
+        if not self.points_saved:
+            warring_dialog = PointsNotSavedDialog(self.main_window)
+            response = warring_dialog.run()
+            if response == Gtk.ResponseType.OK:
+                warring_dialog.destroy()
+                pass
+            elif response == Gtk.ResponseType.CANCEL:
+                warring_dialog.destroy()
+                return
+        if button.get_label() == 'Save Points':
+            text = 'Save points as'
+            action = Gtk.FileChooserAction.SAVE
+            response = (Gtk.STOCK_CANCEL,
+                        Gtk.ResponseType.CANCEL,
+                        Gtk.STOCK_SAVE,
+                        Gtk.ResponseType.OK)
+        else:
+            text = 'Open a file'
+            action = Gtk.FileChooserAction.OPEN
+            response = (Gtk.STOCK_CANCEL,
+                        Gtk.ResponseType.CANCEL,
+                        Gtk.STOCK_OPEN,
+                        Gtk.ResponseType.OK)
+        dialog = Gtk.FileChooserDialog(text,
                                        self.main_window,
-                                       Gtk.FileChooserAction.OPEN,
-                                       (Gtk.STOCK_CANCEL,
-                                        Gtk.ResponseType.CANCEL,
-                                        Gtk.STOCK_OPEN,
-                                        Gtk.ResponseType.OK))
-        self.add_text_filters(dialog)
-        response = dialog.run()
-        if response == Gtk.ResponseType.OK:
-            print("File selected: " + dialog.get_filename())
-            self.load_point_types(dialog.get_filename())
-        elif response == Gtk.ResponseType.CANCEL:
-            pass
+                                       action,
+                                       response)
+        if button.get_label() == 'Open Image':
+            self.add_image_filters(dialog)
+            response = dialog.run()
+            if response == Gtk.ResponseType.OK:
+                print("File selected: " + dialog.get_filename())
+                self.open_image(dialog.get_filename())
+        elif button.get_label() == 'load point types':
+            self.add_text_filters(dialog)
+            response = dialog.run()
+            if response == Gtk.ResponseType.OK:
+                print("File selected: " + dialog.get_filename())
+                self.load_point_types(dialog.get_filename())
+        elif button.get_label() == 'Save Points':
+            dialog.set_do_overwrite_confirmation(True)
+            self.add_text_filters(dialog)
+            response = dialog.run()
+            if response == Gtk.ResponseType.OK:
+                print("File selected: " + dialog.get_filename())
+                self.save_points(dialog.get_filename())
         dialog.destroy()
 
 
