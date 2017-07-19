@@ -190,7 +190,7 @@
                       <object class="GtkEventBox" id="event_box">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
-                        <signal name="button-press-event" handler="add_point" swapped="no"/>
+                        <signal name="button-press-event" handler="add_remove_point" swapped="no"/>
                         <child>
                           <object class="GtkImage" id="draw_image">
                             <property name="visible">True</property>

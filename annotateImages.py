@@ -2,6 +2,7 @@ import cairo
 import gi
 from collections import namedtuple
 import csv
+from math import sqrt, pi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gdk, GdkPixbuf
 
@@ -11,8 +12,7 @@ class Handler:
         # named tuples used.
         self.buf_and_image = namedtuple('buf_and_image', ['buf', 'image'])
         self.color = namedtuple('color', ['r', 'g', 'b', 'a'])
-        self.point = namedtuple('point', ('x', 'y', 'type') +
-                                self.color._fields)
+        self.point = namedtuple('point', ('x', 'y', 'type')+self.color._fields)
         # handles to different widgets
         self.main_window = gui_builder.get_object('main_window')
         self.overlay = gui_builder.get_object('overlay')
@@ -20,6 +20,7 @@ class Handler:
         self.gtk_point_type_list = gui_builder.get_object('point_type_list')
         self.points_type_button = gui_builder.get_object('point_types')
         # ready the draw area
+        self.radius = 10
         self.buffers_and_images = {}
         self.init_draw_area(gui_builder)
         # ready the point type selection
@@ -102,24 +103,48 @@ class Handler:
         else:
             print('No point type selected')
 
-    def add_point(self, event_box, event):
+    def clean_draw_image(self):
+        width = self.image_width * self.scale
+        height = self.image_height * self.scale
+        draw = self.buffers_and_images.get('draw')
+        buf_temp = draw.buf.scale_simple(width,
+                                         height,
+                                         GdkPixbuf.InterpType.BILINEAR)
+        draw.image.set_from_pixbuf(buf_temp)
+
+    def find_closest_point(self, point):
+        dist_keep = 1000000
+        p_keep = None
+        for p in self.point_list:
+            dist = sqrt((p.x-point.x)**2+(p.y-point.y)**2)
+            if dist < dist_keep:
+                dist_keep = dist
+                p_keep = p
+        return dist_keep, p_keep
+
+    def add_remove_point(self, event_box, event):
         if event.button == 1:
-            point = self.point(event.x,
-                               event.y,
-                               self.point_type,
-                               self.point_type_color.r,
-                               self.point_type_color.g,
-                               self.point_type_color.b,
-                               self.point_type_color.a)
-            self.point_list.append(point)
-            self.draw_rectangle(point)
+            dist, _ = self.find_closest_point(event)
+            if dist > 2*self.radius:
+                point = self.point(event.x,
+                                   event.y,
+                                   self.point_type,
+                                   self.point_type_color.r,
+                                   self.point_type_color.g,
+                                   self.point_type_color.b,
+                                   self.point_type_color.a)
+                self.point_list.append(point)
+                self.draw_circles([point])
+        elif event.button == 3:
+            dist, point = self.find_closest_point(event)
+            if dist < self.radius:
+                self.point_list.remove(point)
+                self.clean_draw_image()
+                self.draw_circles(self.point_list)
         else:
             print(event.button)
 
-    def draw_rectangle(self, point):
-        radius = 20
-        x = int(point.x - radius / 2)
-        y = int(point.y - radius / 2)
+    def draw_circles(self, points):
         draw = self.buffers_and_images.get('draw')
         draw_buf = draw.image.get_pixbuf()
         width = draw_buf.get_width()
@@ -128,12 +153,15 @@ class Handler:
         cr = cairo.Context(surface)
         Gdk.cairo_set_source_pixbuf(cr, draw_buf, 0, 0)
         cr.paint()
-        cr.set_source_rgba(point.r,
-                           point.g,
-                           point.b,
-                           point.a)
-        cr.rectangle(x, y, radius, radius)
-        cr.fill()
+        for point in points:
+            x = int(point.x)
+            y = int(point.y)
+            cr.set_source_rgba(point.r,
+                               point.g,
+                               point.b,
+                               point.a)
+            cr.arc(x, y, self.radius, 0, 2*pi)
+            cr.fill()
         surface = cr.get_target()
         draw_buf = Gdk.pixbuf_get_from_surface(surface, 0, 0, width, height)
         draw.image.set_from_pixbuf(draw_buf)
@@ -146,7 +174,7 @@ class Handler:
             y = p.y * scale_factor
             new_point = self.point(x, y, p.type, p.r, p.g, p.b, p.a)
             scaled_points.append(new_point)
-            self.draw_rectangle(new_point)
+        self.draw_circles(scaled_points)
         self.point_list = scaled_points
 
     @staticmethod
@@ -248,6 +276,7 @@ class Handler:
         self.gtk_point_type_list.clear()
         with open(filename, newline='') as csv_file:
             reader = csv.reader(csv_file, delimiter=',')
+            reader.__next__()
             for row in reader:
                 self.gtk_point_type_list.append(row)
         self.points_type_button.set_active(0)
