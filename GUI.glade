@@ -39,6 +39,20 @@
           </packing>
         </child>
         <child>
+          <object class="GtkButton" id="Save_points">
+            <property name="label" translatable="yes">Save Points</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="receives_default">True</property>
+            <signal name="clicked" handler="save_points_dialog" swapped="no"/>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">4</property>
+          </packing>
+        </child>
+        <child>
           <object class="GtkBox" id="horisoltal_box">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
@@ -110,14 +124,13 @@
                       <object class="GtkImage" id="background_image">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
-                        <property name="pixbuf">data/background.JPG</property>
+                        <property name="pixbuf">data/background.png</property>
                       </object>
                     </child>
                     <child type="overlay">
                       <object class="GtkImage" id="original_image">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
-                        <property name="pixbuf">data/drone.png</property>
                       </object>
                       <packing>
                         <property name="index">1</property>
@@ -127,7 +140,6 @@
                       <object class="GtkImage" id="bw_image">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
-                        <property name="pixbuf">data/drone2.png</property>
                       </object>
                       <packing>
                         <property name="index">0</property>
@@ -137,7 +149,7 @@
                       <object class="GtkEventBox" id="event_box">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
-                        <signal name="button-press-event" handler="draw_circle" swapped="no"/>
+                        <signal name="button-press-event" handler="add_point" swapped="no"/>
                         <child>
                           <object class="GtkImage" id="drawing_image">
                             <property name="visible">True</property>
