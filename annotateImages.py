@@ -360,7 +360,7 @@ class Handler:
 
 if __name__ == '__main__':
     builder = Gtk.Builder()
-    builder.add_from_file('GUI.glade')
+    builder.add_from_file('data/GUI.glade')
     signal_handler = Handler(builder)
     builder.connect_signals(signal_handler)
     window = builder.get_object('main_window')

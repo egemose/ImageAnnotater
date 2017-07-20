@@ -273,7 +273,7 @@
                       <object class="GtkImage" id="background_image">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
-                        <property name="pixbuf">data/background.png</property>
+                        <property name="pixbuf">background.png</property>
                       </object>
                     </child>
                     <child type="overlay">
@@ -303,7 +303,7 @@
                           <object class="GtkImage" id="draw_image">
                             <property name="visible">True</property>
                             <property name="can_focus">False</property>
-                            <property name="pixbuf">data/draw_image.png</property>
+                            <property name="pixbuf">draw_image.png</property>
                           </object>
                         </child>
                       </object>
