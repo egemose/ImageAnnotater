@@ -10,11 +10,11 @@ from gi.repository import Gtk, Gdk, GdkPixbuf
 class PointsNotSavedDialog(Gtk.Dialog):
 
     def __init__(self, parent):
-        Gtk.Dialog.__init__(self, "Points not saved!", parent, 0,
+        Gtk.Dialog.__init__(self, 'Points not saved!', parent, 0,
             (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
              Gtk.STOCK_OK, Gtk.ResponseType.OK))
         self.set_default_size(150, 100)
-        label = Gtk.Label("The current points have not been saved.")
+        label = Gtk.Label('The current points have not been saved.')
         label2 = Gtk.Label('Use cancel to return and then save.')
         label3 = Gtk.Label('Use ok to discard and continue.')
         box = self.get_content_area()
@@ -33,9 +33,15 @@ class Handler:
         # handles to different widgets
         self.main_window = gui_builder.get_object('main_window')
         self.overlay = gui_builder.get_object('overlay')
-        self.label_zoom_level = gui_builder.get_object('zoom_level')
+        self.label_zoom_level = gui_builder.get_object('zoom_label')
         self.gtk_point_type_list = gui_builder.get_object('point_type_list')
-        self.points_type_button = gui_builder.get_object('point_types')
+        self.points_type_button = gui_builder.get_object('select_point_type_box')
+        self.switch_image_button = gui_builder.get_object('switch_image')
+        # setup the status bar
+        self.status_bar = gui_builder.get_object('status_bar')
+        self.status_msg = self.status_bar.get_context_id('Message')
+        self.status_warning = self.status_bar.get_context_id('Warning')
+        self.show_missing_image_warning = True
         # ready the draw area
         self.radius = 10
         self.buffers_and_images = {}
@@ -54,7 +60,7 @@ class Handler:
         self.image_width = 100
         self.image_height = 100
         # open the image dialog to choose first image
-        open_image_button = gui_builder.get_object('Open_image')
+        open_image_button = gui_builder.get_object('open_image')
         self.file_dialog(open_image_button)
 
     def init_draw_area(self, gui_builder):
@@ -92,7 +98,11 @@ class Handler:
     def zoom_pressed(self, button):
         self.old_scale = self.scale
         value = 0.5
-        if button.get_label() == '-':
+        if button.get_label() == 'Zoom too normal':
+            self.scale = 1
+            self.zoom()
+            return
+        elif button.get_label() == 'Zoom out':
             value = -value
         if value < 0 and self.scale < 1:
             pass
@@ -104,10 +114,17 @@ class Handler:
         width = self.image_width * self.scale
         height = self.image_height * self.scale
         for bi in self.buffers_and_images.values():
-            buf_temp = bi.buf.scale_simple(width,
-                                           height,
-                                           GdkPixbuf.InterpType.BILINEAR)
-            bi.image.set_from_pixbuf(buf_temp)
+            try:
+                buf_temp = bi.buf.scale_simple(width,
+                                               height,
+                                               GdkPixbuf.InterpType.BILINEAR)
+                bi.image.set_from_pixbuf(buf_temp)
+            except AttributeError:
+                if self.show_missing_image_warning:
+                    status_string = 'Computer annotated image not loaded!'
+                    self.status_bar.push(self.status_warning, status_string)
+                    self.switch_image_button.set_sensitive(False)
+                    self.show_missing_image_warning = False
         self.label_zoom_level.set_markup(str(self.scale))
         self.redraw_points()
 
@@ -201,38 +218,42 @@ class Handler:
     @staticmethod
     def add_image_filters(dialog):
         filter_jpg = Gtk.FileFilter()
-        filter_jpg.set_name("JPG images")
-        filter_jpg.add_mime_type("image/jpeg")
+        filter_jpg.set_name('JPG images')
+        filter_jpg.add_mime_type('image/jpeg')
         dialog.add_filter(filter_jpg)
 
         filter_png = Gtk.FileFilter()
-        filter_png.set_name("Png images")
-        filter_png.add_mime_type("image/png")
+        filter_png.set_name('Png images')
+        filter_png.add_mime_type('image/png')
         dialog.add_filter(filter_png)
 
         filter_any = Gtk.FileFilter()
-        filter_any.set_name("Any files")
-        filter_any.add_pattern("*")
+        filter_any.set_name('Any files')
+        filter_any.add_pattern('*')
         dialog.add_filter(filter_any)
 
     @staticmethod
     def add_text_filters(dialog):
         filter_csv = Gtk.FileFilter()
-        filter_csv.set_name("csv")
-        filter_csv.add_mime_type("text/csv")
+        filter_csv.set_name('csv')
+        filter_csv.add_mime_type('text/csv')
         dialog.add_filter(filter_csv)
 
         filter_plain = Gtk.FileFilter()
-        filter_plain.set_name("Plain text")
-        filter_plain.add_mime_type("text/plain")
+        filter_plain.set_name('Plain text')
+        filter_plain.add_mime_type('text/plain')
         dialog.add_filter(filter_plain)
 
         filter_any = Gtk.FileFilter()
-        filter_any.set_name("Any files")
-        filter_any.add_pattern("*")
+        filter_any.set_name('Any files')
+        filter_any.add_pattern('*')
         dialog.add_filter(filter_any)
 
     def open_image(self, filename):
+        status_string = 'Image and computer annotated image opened.'
+        self.status_bar.push(self.status_msg, status_string)
+        self.switch_image_button.set_sensitive(True)
+        self.show_missing_image_warning = True
         original = self.buffers_and_images.get('original')
         original.image.set_from_file(filename)
         new_original_buf = original.image.get_pixbuf()
@@ -253,6 +274,8 @@ class Handler:
         self.zoom()
 
     def load_point_types(self, filename):
+        status_string = 'Point types loaded.'
+        self.status_bar.push(self.status_msg, status_string)
         self.gtk_point_type_list.clear()
         with open(filename, newline='') as csv_file:
             reader = csv.reader(csv_file, delimiter=',')
@@ -260,8 +283,14 @@ class Handler:
             for row in reader:
                 self.gtk_point_type_list.append(row)
         self.points_type_button.set_active(0)
+        self.point_list = []
+        self.points_saved = True
+        self.clean_draw_image()
+        self.draw_circles(self.point_list)
 
     def save_points(self, filename):
+        status_string = 'points saved in %s' % filename
+        self.status_bar.push(self.status_msg, status_string)
         self.points_saved = True
         header = ['x', 'y', 'type', 'red', 'green', 'blue', 'alpha']
         with open(filename, 'w') as csv_file:
@@ -273,16 +302,7 @@ class Handler:
                 writer.writerow([x, y, p.type, p.r, p.g, p.b, p.a])
 
     def file_dialog(self, button):
-        if not self.points_saved:
-            warring_dialog = PointsNotSavedDialog(self.main_window)
-            response = warring_dialog.run()
-            if response == Gtk.ResponseType.OK:
-                warring_dialog.destroy()
-                pass
-            elif response == Gtk.ResponseType.CANCEL:
-                warring_dialog.destroy()
-                return
-        if button.get_label() == 'Save Points':
+        if button.get_label() == 'Save points':
             text = 'Save points as'
             action = Gtk.FileChooserAction.SAVE
             response = (Gtk.STOCK_CANCEL,
@@ -290,6 +310,15 @@ class Handler:
                         Gtk.STOCK_SAVE,
                         Gtk.ResponseType.OK)
         else:
+            if not self.points_saved:
+                warring_dialog = PointsNotSavedDialog(self.main_window)
+                response = warring_dialog.run()
+                if response == Gtk.ResponseType.OK:
+                    warring_dialog.destroy()
+                    pass
+                elif response == Gtk.ResponseType.CANCEL:
+                    warring_dialog.destroy()
+                    return
             text = 'Open a file'
             action = Gtk.FileChooserAction.OPEN
             response = (Gtk.STOCK_CANCEL,
@@ -300,33 +329,30 @@ class Handler:
                                        self.main_window,
                                        action,
                                        response)
-        if button.get_label() == 'Open Image':
+        if button.get_label() == 'Open image':
             self.add_image_filters(dialog)
             response = dialog.run()
             if response == Gtk.ResponseType.OK:
-                print("File selected: " + dialog.get_filename())
                 self.open_image(dialog.get_filename())
-        elif button.get_label() == 'load point types':
+        elif button.get_label() == 'Load point types':
             self.add_text_filters(dialog)
             response = dialog.run()
             if response == Gtk.ResponseType.OK:
-                print("File selected: " + dialog.get_filename())
                 self.load_point_types(dialog.get_filename())
-        elif button.get_label() == 'Save Points':
+        elif button.get_label() == 'Save points':
             dialog.set_do_overwrite_confirmation(True)
             self.add_text_filters(dialog)
             response = dialog.run()
             if response == Gtk.ResponseType.OK:
-                print("File selected: " + dialog.get_filename())
                 self.save_points(dialog.get_filename())
         dialog.destroy()
 
 
 if __name__ == '__main__':
     builder = Gtk.Builder()
-    builder.add_from_file("GUI.glade")
+    builder.add_from_file('GUI.glade')
     signal_handler = Handler(builder)
     builder.connect_signals(signal_handler)
-    window = builder.get_object("main_window")
+    window = builder.get_object('main_window')
     window.show_all()
     Gtk.main()
