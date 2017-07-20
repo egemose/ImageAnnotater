@@ -10,13 +10,16 @@ from gi.repository import Gtk, Gdk, GdkPixbuf
 class PointsNotSavedDialog(Gtk.Dialog):
 
     def __init__(self, parent):
-        Gtk.Dialog.__init__(self, 'Points not saved!', parent, 0,
-            (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
-             Gtk.STOCK_OK, Gtk.ResponseType.OK))
+        header = 'Points not saved!'
+        response = (Gtk.STOCK_CANCEL,
+                    Gtk.ResponseType.CANCEL,
+                    Gtk.STOCK_OK,
+                    Gtk.ResponseType.OK)
+        Gtk.Dialog.__init__(self, header, parent, 0, response)
         self.set_default_size(150, 100)
         label = Gtk.Label('The current points have not been saved.')
-        label2 = Gtk.Label('Use cancel to return and then save.')
-        label3 = Gtk.Label('Use ok to discard and continue.')
+        label2 = Gtk.Label('Use Cancel to return and then save.')
+        label3 = Gtk.Label('Use OK to discard and continue.')
         box = self.get_content_area()
         box.add(label)
         box.add(label2)
@@ -35,7 +38,7 @@ class Handler:
         self.overlay = gui_builder.get_object('overlay')
         self.label_zoom_level = gui_builder.get_object('zoom_label')
         self.gtk_point_type_list = gui_builder.get_object('point_type_list')
-        self.points_type_button = gui_builder.get_object('select_point_type_box')
+        self.point_type_button = gui_builder.get_object('select_point_type_box')
         self.switch_image_button = gui_builder.get_object('switch_image')
         # setup the status bar
         self.status_bar = gui_builder.get_object('status_bar')
@@ -50,7 +53,7 @@ class Handler:
         self.point_type_color = self.hex_color_to_rgba('#FF0000')
         self.point_type = 'None'
         self.gtk_point_type_list.append(['#FF0000', 'None'])
-        self.points_type_button.set_active(0)
+        self.point_type_button.set_active(0)
         # init list to store points in
         self.point_list = []
         self.points_saved = True
@@ -59,9 +62,6 @@ class Handler:
         self.old_scale = 1
         self.image_width = 100
         self.image_height = 100
-        # open the image dialog to choose first image
-        open_image_button = gui_builder.get_object('open_image')
-        self.file_dialog(open_image_button)
 
     def init_draw_area(self, gui_builder):
         images = ['background_image',
@@ -74,8 +74,15 @@ class Handler:
             bi = self.buf_and_image(buf, image)
             self.buffers_and_images[im.rstrip('_image')] = bi
 
-    @staticmethod
-    def delete_window(*args):
+    def delete_window(self, *args):
+        if not self.points_saved:
+            warring_dialog = PointsNotSavedDialog(self.main_window)
+            response = warring_dialog.run()
+            if response == Gtk.ResponseType.OK:
+                warring_dialog.destroy()
+            elif response == Gtk.ResponseType.CANCEL:
+                warring_dialog.destroy()
+                return True
         Gtk.main_quit(*args)
 
     def hex_color_to_rgba(self, hex_color):
@@ -282,14 +289,14 @@ class Handler:
             reader.__next__()
             for row in reader:
                 self.gtk_point_type_list.append(row)
-        self.points_type_button.set_active(0)
+        self.point_type_button.set_active(0)
         self.point_list = []
         self.points_saved = True
         self.clean_draw_image()
         self.draw_circles(self.point_list)
 
     def save_points(self, filename):
-        status_string = 'points saved in %s' % filename
+        status_string = 'points saved'
         self.status_bar.push(self.status_msg, status_string)
         self.points_saved = True
         header = ['x', 'y', 'type', 'red', 'green', 'blue', 'alpha']
@@ -302,6 +309,7 @@ class Handler:
                 writer.writerow([x, y, p.type, p.r, p.g, p.b, p.a])
 
     def file_dialog(self, button):
+        text = 'Choose a file'
         if button.get_label() == 'Save points':
             text = 'Save points as'
             action = Gtk.FileChooserAction.SAVE
@@ -315,11 +323,13 @@ class Handler:
                 response = warring_dialog.run()
                 if response == Gtk.ResponseType.OK:
                     warring_dialog.destroy()
-                    pass
                 elif response == Gtk.ResponseType.CANCEL:
                     warring_dialog.destroy()
-                    return
-            text = 'Open a file'
+                    return True
+            if button.get_label() == 'Open Image':
+                text = 'Choose a image to open'
+            elif button.get_label() == 'Load point types':
+                text = 'Choose a file with the point types'
             action = Gtk.FileChooserAction.OPEN
             response = (Gtk.STOCK_CANCEL,
                         Gtk.ResponseType.CANCEL,
