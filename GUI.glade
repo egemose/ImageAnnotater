@@ -2,13 +2,17 @@
 <interface>
   <requires lib="gtk+" version="3.12"/>
   <object class="GtkListStore" id="point_type_list">
-   <columns>
-     <!-- column-name code -->
-     <column type="gchararray"/>
-     <!-- column-name legible -->
-     <column type="gchararray"/>
-   </columns>
- </object>
+    <columns>
+      <column type="gchararray"/>
+      <column type="gchararray"/>
+    </columns>
+  </object>
+  <object class="GtkListStore" id="icon_menu_list">
+    <columns>
+      <column type="GdkPixbuf"/>
+      <column type="gchararray"/>
+    </columns>
+  </object>
   <object class="GtkWindow" id="main_window">
     <property name="can_focus">False</property>
     <signal name="delete-event" handler="delete_window" swapped="no"/>
@@ -18,94 +22,202 @@
         <property name="can_focus">False</property>
         <property name="orientation">vertical</property>
         <child>
-          <object class="GtkToggleButton" id="switch_image">
-            <property name="label" translatable="yes">Switch Images</property>
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="receives_default">True</property>
-            <property name="yalign">0.49000000953674316</property>
-            <signal name="toggled" handler="switch_images" swapped="no"/>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">0</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkButton" id="Open_image">
-            <property name="label" translatable="yes">Open Image</property>
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="receives_default">True</property>
-            <signal name="clicked" handler="file_dialog" swapped="no"/>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">3</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkButton" id="Save_points">
-            <property name="label" translatable="yes">Save Points</property>
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="receives_default">True</property>
-            <signal name="clicked" handler="file_dialog" swapped="no"/>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">4</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkComboBox" id="point_types">
+          <object class="GtkBox" id="menu_box">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
-            <property name="model">point_type_list</property>
-            <signal name="changed" handler="point_type_changed" swapped="no"/>
+            <property name="valign">start</property>
+            <property name="hexpand">True</property>
+            <property name="baseline_position">top</property>
             <child>
-              <object class="GtkCellRendererText" id="renderer"/>
-              <attributes>
-                <attribute name="text">1</attribute>
-              </attributes>
-          </child>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">5</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkButton" id="load_point_type">
-            <property name="label" translatable="yes">load point types</property>
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="receives_default">True</property>
-            <signal name="clicked" handler="file_dialog" swapped="no"/>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">6</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkBox" id="horisoltal_box">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <property name="homogeneous">True</property>
-            <child>
-              <object class="GtkButton" id="zoom_out">
-                <property name="label" translatable="yes">-</property>
+              <object class="GtkToolbar" id="toolbar">
                 <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="receives_default">True</property>
-                <property name="yalign">0.49000000953674316</property>
-                <signal name="clicked" handler="zoom_pressed" swapped="no"/>
+                <property name="can_focus">False</property>
+                <property name="valign">start</property>
+                <property name="toolbar_style">icons</property>
+                <property name="icon_size">1</property>
+                <child>
+                  <object class="GtkToolButton" id="open_image">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="tooltip_text" translatable="yes">Open image</property>
+                    <property name="label" translatable="yes">Open image</property>
+                    <property name="use_underline">True</property>
+                    <property name="stock_id">gtk-open</property>
+                    <signal name="clicked" handler="file_dialog" swapped="no"/>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="homogeneous">True</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkToolButton" id="load_point_type">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="tooltip_text" translatable="yes">Load point types</property>
+                    <property name="label" translatable="yes">Load point types</property>
+                    <property name="use_underline">True</property>
+                    <property name="stock_id">gtk-file</property>
+                    <signal name="clicked" handler="file_dialog" swapped="no"/>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="homogeneous">True</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkToolButton" id="save_points">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="tooltip_text" translatable="yes">Save points</property>
+                    <property name="label" translatable="yes">Save points</property>
+                    <property name="use_underline">True</property>
+                    <property name="stock_id">gtk-save</property>
+                    <signal name="clicked" handler="file_dialog" swapped="no"/>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="homogeneous">True</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkSeparatorToolItem" id="seperator1">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="homogeneous">True</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkToggleToolButton" id="switch_image">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="tooltip_text" translatable="yes">Switch images</property>
+                    <property name="label" translatable="yes">Switch images</property>
+                    <property name="use_underline">True</property>
+                    <property name="stock_id">gtk-network</property>
+                    <signal name="toggled" handler="switch_images" swapped="no"/>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="homogeneous">True</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkToolItem" id="select_point_type">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <child>
+                      <object class="GtkComboBox" id="select_point_type_box">
+                        <property name="visible">True</property>
+                        <property name="can_focus">False</property>
+                        <property name="hexpand">True</property>
+                        <property name="model">point_type_list</property>
+                        <signal name="changed" handler="point_type_changed" swapped="no"/>
+                        <child>
+                          <object class="GtkCellRendererText" id="renderer"/>
+                          <attributes>
+                            <attribute name="text">1</attribute>
+                          </attributes>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="homogeneous">True</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkSeparatorToolItem" id="seperator2">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="homogeneous">True</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkToolButton" id="zoom_out">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="tooltip_text" translatable="yes">Zoom out</property>
+                    <property name="label" translatable="yes">Zoom out</property>
+                    <property name="use_underline">True</property>
+                    <property name="stock_id">gtk-zoom-out</property>
+                    <signal name="clicked" handler="zoom_pressed" swapped="no"/>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="homogeneous">True</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkToolItem" id="zoom_label_box">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <child>
+                      <object class="GtkLabel" id="zoom_label">
+                        <property name="visible">True</property>
+                        <property name="can_focus">False</property>
+                        <property name="hexpand">True</property>
+                        <property name="tooltip_text" translatable="yes">Zoom level</property>
+                        <property name="label" translatable="yes">1</property>
+                        <property name="justify">center</property>
+                        <property name="width_chars">6</property>
+                        <property name="single_line_mode">True</property>
+                        <property name="max_width_chars">6</property>
+                      </object>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="homogeneous">True</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkToolButton" id="zoom_in">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="tooltip_text" translatable="yes">Zoom in</property>
+                    <property name="label" translatable="yes">Zoom in</property>
+                    <property name="use_underline">True</property>
+                    <property name="stock_id">gtk-zoom-in</property>
+                    <signal name="clicked" handler="zoom_pressed" swapped="no"/>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="homogeneous">True</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkToolButton" id="zoom_too_normal">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="tooltip_text" translatable="yes">Zoom too normal</property>
+                    <property name="label" translatable="yes">Zoom too normal</property>
+                    <property name="use_underline">True</property>
+                    <property name="stock_id">gtk-zoom-100</property>
+                    <signal name="clicked" handler="zoom_pressed" swapped="no"/>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="homogeneous">True</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkSeparatorToolItem" id="seperator3">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="homogeneous">True</property>
+                  </packing>
+                </child>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -114,10 +226,19 @@
               </packing>
             </child>
             <child>
-              <object class="GtkLabel" id="zoom_level">
+              <object class="GtkStatusbar" id="status_bar">
+                <property name="width_request">300</property>
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
-                <property name="label" translatable="yes">1</property>
+                <property name="margin_left">10</property>
+                <property name="margin_right">10</property>
+                <property name="margin_start">10</property>
+                <property name="margin_end">10</property>
+                <property name="margin_top">6</property>
+                <property name="margin_bottom">6</property>
+                <property name="hexpand">True</property>
+                <property name="orientation">vertical</property>
+                <property name="spacing">2</property>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -125,34 +246,21 @@
                 <property name="position">1</property>
               </packing>
             </child>
-            <child>
-              <object class="GtkButton" id="zoom_in">
-                <property name="label" translatable="yes">+</property>
-                <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="receives_default">True</property>
-                <signal name="clicked" handler="zoom_pressed" swapped="no"/>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="position">2</property>
-              </packing>
-            </child>
           </object>
           <packing>
-            <property name="expand">False</property>
+            <property name="expand">True</property>
             <property name="fill">True</property>
-            <property name="position">1</property>
+            <property name="position">0</property>
           </packing>
         </child>
+
         <child>
           <object class="GtkScrolledWindow" id="scroll_window">
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="shadow_type">in</property>
-            <property name="min_content_width">500</property>
-            <property name="min_content_height">500</property>
+            <property name="min_content_width">1000</property>
+            <property name="min_content_height">700</property>
             <child>
               <object class="GtkViewport" id="viewport">
                 <property name="visible">True</property>
@@ -211,7 +319,7 @@
           <packing>
             <property name="expand">True</property>
             <property name="fill">True</property>
-            <property name="position">2</property>
+            <property name="position">1</property>
           </packing>
         </child>
       </object>
