@@ -226,6 +226,20 @@
               </packing>
             </child>
             <child>
+              <object class="GtkProgressBar" id="progress_bar">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="margin_top">10</property>
+                <property name="margin_bottom">11</property>
+                <property name="fraction">0.0</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+            <child>
               <object class="GtkStatusbar" id="status_bar">
                 <property name="width_request">200</property>
                 <property name="visible">True</property>
@@ -243,7 +257,7 @@
               <packing>
                 <property name="expand">False</property>
                 <property name="fill">True</property>
-                <property name="position">1</property>
+                <property name="position">2</property>
               </packing>
             </child>
           </object>

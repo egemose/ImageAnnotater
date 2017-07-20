@@ -4,7 +4,7 @@ from math import sqrt, pi
 import cairo
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, Gdk, GdkPixbuf
+from gi.repository import Gtk, Gdk, GdkPixbuf, GObject
 
 
 class PointsNotSavedDialog(Gtk.Dialog):
@@ -40,6 +40,7 @@ class Handler:
         self.gtk_point_type_list = gui_builder.get_object('point_type_list')
         self.point_type_button = gui_builder.get_object('select_point_type_box')
         self.switch_image_button = gui_builder.get_object('switch_image')
+        self.progress_bar = gui_builder.get_object('progress_bar')
         # setup the status bar
         self.status_bar = gui_builder.get_object('status_bar')
         self.status_msg = self.status_bar.get_context_id('Message')
@@ -103,6 +104,7 @@ class Handler:
             self.overlay.reorder_overlay(bw.image, 0)
 
     def zoom_pressed(self, button):
+        self.progress_bar.set_fraction(0.0)
         self.old_scale = self.scale
         value = 0.5
         if button.get_label() == 'Zoom too normal':
@@ -118,6 +120,11 @@ class Handler:
             self.zoom()
 
     def zoom(self):
+        task = self.zoom_with_progress()
+        GObject.idle_add(task.__next__)
+
+    def zoom_with_progress(self):
+        progress = 0
         width = self.image_width * self.scale
         height = self.image_height * self.scale
         for bi in self.buffers_and_images.values():
@@ -132,8 +139,12 @@ class Handler:
                     self.status_bar.push(self.status_warning, status_string)
                     self.switch_image_button.set_sensitive(False)
                     self.show_missing_image_warning = False
+            progress = progress + 0.25
+            self.progress_bar.set_fraction(progress)
+            yield True
         self.label_zoom_level.set_markup(str(self.scale))
         self.redraw_points()
+        yield False
 
     def point_type_changed(self, button):
         model = button.get_model()
