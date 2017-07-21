@@ -328,7 +328,7 @@
                             <property name="can_focus">False</property>
                             <signal name="button-press-event" handler="add_remove_point" swapped="no"/>
                             <signal name="button-release-event" handler="add_remove_point" swapped="no"/>
-                            <signal name="motion-notify-event" handler="scroll" swapped="no"/>
+                            <signal name="motion-notify-event" handler="mouse_move" swapped="no"/>
                             <child>
                               <object class="GtkImage" id="draw_image">
                                 <property name="visible">True</property>
