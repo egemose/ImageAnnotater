@@ -2,12 +2,12 @@
 <!-- Generated with glade 3.18.3 -->
 <interface>
   <requires lib="gtk+" version="3.12"/>
-  <object class="GtkListStore" id="icon_menu_list">
+  <object class="GtkListStore" id="point_summary">
     <columns>
-      <!-- column-name gdkpixbuf -->
-      <column type="GdkPixbuf"/>
       <!-- column-name gchararray -->
       <column type="gchararray"/>
+      <!-- column-name gint -->
+      <column type="gint"/>
     </columns>
   </object>
   <object class="GtkListStore" id="point_type_list">
@@ -277,67 +277,158 @@
           </packing>
         </child>
         <child>
-          <object class="GtkScrolledWindow" id="scroll_window">
+          <object class="GtkBox" id="box1">
             <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="shadow_type">in</property>
-            <property name="min_content_width">1000</property>
-            <property name="min_content_height">700</property>
+            <property name="can_focus">False</property>
             <child>
-              <object class="GtkViewport" id="viewport">
+              <object class="GtkScrolledWindow" id="scroll_window">
                 <property name="visible">True</property>
-                <property name="can_focus">False</property>
+                <property name="can_focus">True</property>
+                <property name="hexpand">True</property>
+                <property name="vexpand">True</property>
+                <property name="shadow_type">in</property>
+                <property name="min_content_width">1000</property>
+                <property name="min_content_height">700</property>
                 <child>
-                  <object class="GtkOverlay" id="overlay">
+                  <object class="GtkViewport" id="viewport">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <child>
-                      <object class="GtkImage" id="background_image">
+                      <object class="GtkOverlay" id="overlay">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
-                        <property name="pixbuf">background.png</property>
-                      </object>
-                      <packing>
-                        <property name="index">-1</property>
-                      </packing>
-                    </child>
-                    <child type="overlay">
-                      <object class="GtkImage" id="bw_image">
-                        <property name="visible">True</property>
-                        <property name="can_focus">False</property>
-                      </object>
-                    </child>
-                    <child type="overlay">
-                      <object class="GtkImage" id="original_image">
-                        <property name="visible">True</property>
-                        <property name="can_focus">False</property>
-                      </object>
-                      <packing>
-                        <property name="index">1</property>
-                      </packing>
-                    </child>
-                    <child type="overlay">
-                      <object class="GtkEventBox" id="event_box">
-                        <property name="visible">True</property>
-                        <property name="can_focus">False</property>
-                        <signal name="button-press-event" handler="add_remove_point" swapped="no"/>
-                        <signal name="button-release-event" handler="add_remove_point" swapped="no"/>
-                        <signal name="motion-notify-event" handler="scroll" swapped="no"/>
                         <child>
-                          <object class="GtkImage" id="draw_image">
+                          <object class="GtkImage" id="background_image">
                             <property name="visible">True</property>
                             <property name="can_focus">False</property>
-                            <property name="pixbuf">draw_image.png</property>
+                            <property name="pixbuf">background.png</property>
+                          </object>
+                          <packing>
+                            <property name="index">-1</property>
+                          </packing>
+                        </child>
+                        <child type="overlay">
+                          <object class="GtkImage" id="bw_image">
+                            <property name="visible">True</property>
+                            <property name="can_focus">False</property>
                           </object>
                         </child>
+                        <child type="overlay">
+                          <object class="GtkImage" id="original_image">
+                            <property name="visible">True</property>
+                            <property name="can_focus">False</property>
+                          </object>
+                          <packing>
+                            <property name="index">1</property>
+                          </packing>
+                        </child>
+                        <child type="overlay">
+                          <object class="GtkEventBox" id="event_box">
+                            <property name="visible">True</property>
+                            <property name="can_focus">False</property>
+                            <signal name="button-press-event" handler="add_remove_point" swapped="no"/>
+                            <signal name="button-release-event" handler="add_remove_point" swapped="no"/>
+                            <signal name="motion-notify-event" handler="scroll" swapped="no"/>
+                            <child>
+                              <object class="GtkImage" id="draw_image">
+                                <property name="visible">True</property>
+                                <property name="can_focus">False</property>
+                                <property name="pixbuf">draw_image.png</property>
+                              </object>
+                            </child>
+                          </object>
+                          <packing>
+                            <property name="index">2</property>
+                          </packing>
+                        </child>
                       </object>
-                      <packing>
-                        <property name="index">2</property>
-                      </packing>
                     </child>
                   </object>
                 </child>
               </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkBox" id="box2">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="orientation">vertical</property>
+                <child>
+                  <object class="GtkLabel" id="last_entry_label">
+                    <property name="width_request">200</property>
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="label" translatable="yes">Last entry:</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="last_entry">
+                    <property name="width_request">200</property>
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="label" translatable="yes">...</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkTreeView" id="point_summary_tree">
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="model">point_summary</property>
+                    <child internal-child="selection">
+                      <object class="GtkTreeSelection" id="treeview-selection1">
+                        <property name="mode">none</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkTreeViewColumn" id="point_type">
+                        <property name="title" translatable="yes">Type</property>
+                        <property name="expand">True</property>
+                        <child>
+                          <object class="GtkCellRendererText" id="point_type_cell"/>
+                          <attributes>
+                            <attribute name="text">0</attribute>
+                          </attributes>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkTreeViewColumn" id="point_number">
+                        <property name="title" translatable="yes">#</property>
+                        <child>
+                          <object class="GtkCellRendererText" id="point_number_cell"/>
+                          <attributes>
+                            <attribute name="text">1</attribute>
+                          </attributes>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">2</property>
+                  </packing>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
             </child>
           </object>
           <packing>

@@ -84,15 +84,20 @@ class Handler:
             self.buffers_and_images[im.rstrip('_image')] = bi
 
     def delete_window(self, *args):
+        if self.warning_dialog_response():
+            return True
+        Gtk.main_quit(*args)
+
+    def warning_dialog_response(self):
         if not self.points_saved:
             warring_dialog = PointsNotSavedDialog(self.main_window)
             response = warring_dialog.run()
             if response == Gtk.ResponseType.OK:
                 warring_dialog.destroy()
+                return False
             elif response == Gtk.ResponseType.CANCEL:
                 warring_dialog.destroy()
                 return True
-        Gtk.main_quit(*args)
 
     def hex_color_to_rgba(self, hex_color):
         h = hex_color.lstrip('#')
@@ -177,20 +182,8 @@ class Handler:
                                          GdkPixbuf.InterpType.BILINEAR)
         draw.image.set_from_pixbuf(buf_temp)
 
-    def find_closest_point(self, point):
-        dist_keep = 1000000
-        p_keep = None
-        for p in self.point_list:
-            dist = sqrt((p.x-point.x)**2+(p.y-point.y)**2)
-            if dist < dist_keep:
-                dist_keep = dist
-                p_keep = p
-        return dist_keep, p_keep
-
     def scroll(self, event_box, event):
         if self.do_scroll:
-            self.old_event_time = event.time
-            print(event.time)
             v_adjust = self.scroll_window.get_vadjustment()
             h_adjust = self.scroll_window.get_hadjustment()
             scroll_x = h_adjust.get_value()
@@ -212,14 +205,27 @@ class Handler:
         elif event.button == 3:
             self.remove_point(event)
         elif event.button == 2:
-            if event.type == Gdk.EventType.BUTTON_PRESS:
-                self.do_scroll = True
-                self.pressed_x = event.x
-                self.pressed_y = event.y
-            elif event.type == Gdk.EventType.BUTTON_RELEASE:
-                self.do_scroll = False
+            self.button_scroll(event)
         else:
             print(event.button)
+
+    def button_scroll(self, event):
+        if event.type == Gdk.EventType.BUTTON_PRESS:
+            self.do_scroll = True
+            self.pressed_x = event.x
+            self.pressed_y = event.y
+        elif event.type == Gdk.EventType.BUTTON_RELEASE:
+            self.do_scroll = False
+
+    def find_closest_point(self, point):
+        dist_keep = 1000000
+        p_keep = None
+        for p in self.point_list:
+            dist = sqrt((p.x-point.x)**2+(p.y-point.y)**2)
+            if dist < dist_keep:
+                dist_keep = dist
+                p_keep = p
+        return dist_keep, p_keep
 
     def remove_point(self, event):
         dist, point = self.find_closest_point(event)
@@ -272,10 +278,7 @@ class Handler:
         for point in points:
             x = int(point.x)
             y = int(point.y)
-            cr.set_source_rgba(point.r,
-                               point.g,
-                               point.b,
-                               point.a)
+            cr.set_source_rgba(point.r, point.g, point.b, point.a)
             cr.arc(x, y, self.radius, 0, 2*pi)
             cr.fill()
         surface = cr.get_target()
@@ -299,12 +302,10 @@ class Handler:
         filter_jpg.set_name('JPG images')
         filter_jpg.add_mime_type('image/jpeg')
         dialog.add_filter(filter_jpg)
-
         filter_png = Gtk.FileFilter()
         filter_png.set_name('Png images')
         filter_png.add_mime_type('image/png')
         dialog.add_filter(filter_png)
-
         filter_any = Gtk.FileFilter()
         filter_any.set_name('Any files')
         filter_any.add_pattern('*')
@@ -316,12 +317,10 @@ class Handler:
         filter_csv.set_name('csv')
         filter_csv.add_mime_type('text/csv')
         dialog.add_filter(filter_csv)
-
         filter_plain = Gtk.FileFilter()
         filter_plain.set_name('Plain text')
         filter_plain.add_mime_type('text/plain')
         dialog.add_filter(filter_plain)
-
         filter_any = Gtk.FileFilter()
         filter_any.set_name('Any files')
         filter_any.add_pattern('*')
@@ -377,14 +376,14 @@ class Handler:
         status_string = 'points saved'
         self.status_bar.push(self.status_msg, status_string)
         self.points_saved = True
-        header = ['x', 'y', 'type', 'red', 'green', 'blue', 'alpha']
+        header = ['type', 'x', 'y', 'red', 'green', 'blue', 'alpha']
         with open(filename, 'w') as csv_file:
             writer = csv.writer(csv_file)
             writer.writerow(header)
             for p in self.point_list:
                 x = p.x / self.scale
                 y = p.y / self.scale
-                writer.writerow([x, y, p.type, p.r, p.g, p.b, p.a])
+                writer.writerow([p.type, x, y, p.r, p.g, p.b, p.a])
 
     def file_dialog(self, button):
         text = 'Choose a file'
@@ -396,14 +395,8 @@ class Handler:
                         Gtk.STOCK_SAVE,
                         Gtk.ResponseType.OK)
         else:
-            if not self.points_saved:
-                warring_dialog = PointsNotSavedDialog(self.main_window)
-                response = warring_dialog.run()
-                if response == Gtk.ResponseType.OK:
-                    warring_dialog.destroy()
-                elif response == Gtk.ResponseType.CANCEL:
-                    warring_dialog.destroy()
-                    return True
+            if self.warning_dialog_response():
+                return True
             if button.get_label() == 'Open Image':
                 text = 'Choose a image to open'
             elif button.get_label() == 'Load point types':
@@ -438,7 +431,7 @@ class Handler:
 
 if __name__ == '__main__':
     builder = Gtk.Builder()
-    builder.add_from_file('data/GUI2.glade')
+    builder.add_from_file('data/GUI.glade')
     signal_handler = Handler(builder)
     builder.connect_signals(signal_handler)
     window = builder.get_object('main_window')
