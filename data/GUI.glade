@@ -1,15 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- Generated with glade 3.18.3 -->
 <interface>
   <requires lib="gtk+" version="3.12"/>
-  <object class="GtkListStore" id="point_type_list">
+  <object class="GtkListStore" id="icon_menu_list">
     <columns>
-      <column type="gchararray"/>
+      <!-- column-name gdkpixbuf -->
+      <column type="GdkPixbuf"/>
+      <!-- column-name gchararray -->
       <column type="gchararray"/>
     </columns>
   </object>
-  <object class="GtkListStore" id="icon_menu_list">
+  <object class="GtkListStore" id="point_type_list">
     <columns>
-      <column type="GdkPixbuf"/>
+      <!-- column-name gchararray -->
+      <column type="gchararray"/>
+      <!-- column-name gchararray1 -->
       <column type="gchararray"/>
     </columns>
   </object>
@@ -25,6 +30,7 @@
           <object class="GtkBox" id="menu_box">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
+            <property name="halign">start</property>
             <property name="valign">start</property>
             <property name="hexpand">True</property>
             <property name="baseline_position">top</property>
@@ -32,7 +38,9 @@
               <object class="GtkToolbar" id="toolbar">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
+                <property name="halign">start</property>
                 <property name="valign">start</property>
+                <property name="hexpand">True</property>
                 <property name="toolbar_style">icons</property>
                 <property name="icon_size">1</property>
                 <child>
@@ -163,8 +171,8 @@
                       <object class="GtkLabel" id="zoom_label">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
-                        <property name="hexpand">True</property>
                         <property name="tooltip_text" translatable="yes">Zoom level</property>
+                        <property name="hexpand">True</property>
                         <property name="label" translatable="yes">1</property>
                         <property name="justify">center</property>
                         <property name="width_chars">6</property>
@@ -229,9 +237,8 @@
               <object class="GtkProgressBar" id="progress_bar">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
-                <property name="margin_top">10</property>
-                <property name="margin_bottom">11</property>
-                <property name="fraction">0.0</property>
+                <property name="halign">start</property>
+                <property name="show_text">True</property>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -244,6 +251,8 @@
                 <property name="width_request">200</property>
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
+                <property name="halign">baseline</property>
+                <property name="valign">start</property>
                 <property name="margin_left">10</property>
                 <property name="margin_right">10</property>
                 <property name="margin_start">10</property>
@@ -255,7 +264,7 @@
                 <property name="spacing">2</property>
               </object>
               <packing>
-                <property name="expand">False</property>
+                <property name="expand">True</property>
                 <property name="fill">True</property>
                 <property name="position">2</property>
               </packing>
@@ -267,7 +276,6 @@
             <property name="position">0</property>
           </packing>
         </child>
-
         <child>
           <object class="GtkScrolledWindow" id="scroll_window">
             <property name="visible">True</property>
@@ -289,6 +297,15 @@
                         <property name="can_focus">False</property>
                         <property name="pixbuf">background.png</property>
                       </object>
+                      <packing>
+                        <property name="index">-1</property>
+                      </packing>
+                    </child>
+                    <child type="overlay">
+                      <object class="GtkImage" id="bw_image">
+                        <property name="visible">True</property>
+                        <property name="can_focus">False</property>
+                      </object>
                     </child>
                     <child type="overlay">
                       <object class="GtkImage" id="original_image">
@@ -300,19 +317,12 @@
                       </packing>
                     </child>
                     <child type="overlay">
-                      <object class="GtkImage" id="bw_image">
-                        <property name="visible">True</property>
-                        <property name="can_focus">False</property>
-                      </object>
-                      <packing>
-                        <property name="index">0</property>
-                      </packing>
-                    </child>
-                    <child type="overlay">
                       <object class="GtkEventBox" id="event_box">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
                         <signal name="button-press-event" handler="add_remove_point" swapped="no"/>
+                        <signal name="button-release-event" handler="add_remove_point" swapped="no"/>
+                        <signal name="motion-notify-event" handler="scroll" swapped="no"/>
                         <child>
                           <object class="GtkImage" id="draw_image">
                             <property name="visible">True</property>

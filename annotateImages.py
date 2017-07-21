@@ -35,12 +35,16 @@ class Handler:
         self.point = namedtuple('point', ('x', 'y', 'type')+self.color._fields)
         # handles to different widgets
         self.main_window = gui_builder.get_object('main_window')
+        self.scroll_window = gui_builder.get_object('scroll_window')
+        self.do_scroll = False
         self.overlay = gui_builder.get_object('overlay')
         self.label_zoom_level = gui_builder.get_object('zoom_label')
         self.gtk_point_type_list = gui_builder.get_object('point_type_list')
+        self.gtk_point_summary_list = gui_builder.get_object('point_summary')
         self.point_type_button = gui_builder.get_object('select_point_type_box')
         self.switch_image_button = gui_builder.get_object('switch_image')
         self.progress_bar = gui_builder.get_object('progress_bar')
+        self.last_entry_label = gui_builder.get_object('last_entry')
         # setup the status bar
         self.status_bar = gui_builder.get_object('status_bar')
         self.status_msg = self.status_bar.get_context_id('Message')
@@ -50,10 +54,14 @@ class Handler:
         self.radius = 10
         self.buffers_and_images = {}
         self.init_draw_area(gui_builder)
+        self.pressed_x = None
+        self.pressed_y = None
         # ready the point type selection
         self.point_type_color = self.hex_color_to_rgba('#FF0000')
         self.point_type = 'None'
         self.gtk_point_type_list.append(['#FF0000', 'None'])
+        self.gtk_point_summary_list.append(['None', 0])
+        self.point_summary_dict = {'None': 0}
         self.point_type_button.set_active(0)
         # init list to store points in
         self.point_list = []
@@ -104,7 +112,6 @@ class Handler:
             self.overlay.reorder_overlay(bw.image, 0)
 
     def zoom_pressed(self, button):
-        self.progress_bar.set_fraction(0.0)
         self.old_scale = self.scale
         value = 0.5
         if button.get_label() == 'Zoom too normal':
@@ -120,11 +127,14 @@ class Handler:
             self.zoom()
 
     def zoom(self):
+        self.progress_bar.set_text(None)
         task = self.zoom_with_progress()
         GObject.idle_add(task.__next__)
 
     def zoom_with_progress(self):
         progress = 0
+        self.progress_bar.set_fraction(0.0)
+        yield True
         width = self.image_width * self.scale
         height = self.image_height * self.scale
         for bi in self.buffers_and_images.values():
@@ -144,6 +154,7 @@ class Handler:
             yield True
         self.label_zoom_level.set_markup(str(self.scale))
         self.redraw_points()
+        self.progress_bar.set_text('Done!')
         yield False
 
     def point_type_changed(self, button):
@@ -176,29 +187,78 @@ class Handler:
                 p_keep = p
         return dist_keep, p_keep
 
+    def scroll(self, event_box, event):
+        if self.do_scroll:
+            self.old_event_time = event.time
+            print(event.time)
+            v_adjust = self.scroll_window.get_vadjustment()
+            h_adjust = self.scroll_window.get_hadjustment()
+            scroll_x = h_adjust.get_value()
+            scroll_y = v_adjust.get_value()
+            change_x = self.pressed_x - event.x
+            change_y = self.pressed_y - event.y
+            scroll_x = scroll_x + change_x
+            scroll_y = scroll_y + change_y
+            v_adjust.set_value(scroll_y)
+            h_adjust.set_value(scroll_x)
+            self.scroll_window.set_vadjustment(v_adjust)
+            self.scroll_window.set_hadjustment(h_adjust)
+            self.pressed_x = event.x
+            self.pressed_y = event.y
+
     def add_remove_point(self, event_box, event):
         if event.button == 1:
-            dist, _ = self.find_closest_point(event)
-            if dist > 2*self.radius:
-                self.points_saved = False
-                point = self.point(event.x,
-                                   event.y,
-                                   self.point_type,
-                                   self.point_type_color.r,
-                                   self.point_type_color.g,
-                                   self.point_type_color.b,
-                                   self.point_type_color.a)
-                self.point_list.append(point)
-                self.draw_circles([point])
+            self.add_point(event)
         elif event.button == 3:
-            dist, point = self.find_closest_point(event)
-            if dist < self.radius:
-                self.points_saved = False
-                self.point_list.remove(point)
-                self.clean_draw_image()
-                self.draw_circles(self.point_list)
+            self.remove_point(event)
+        elif event.button == 2:
+            if event.type == Gdk.EventType.BUTTON_PRESS:
+                self.do_scroll = True
+                self.pressed_x = event.x
+                self.pressed_y = event.y
+            elif event.type == Gdk.EventType.BUTTON_RELEASE:
+                self.do_scroll = False
         else:
             print(event.button)
+
+    def remove_point(self, event):
+        dist, point = self.find_closest_point(event)
+        if dist < self.radius:
+            self.points_saved = False
+            self.point_list.remove(point)
+            self.clean_draw_image()
+            self.draw_circles(self.point_list)
+            label_text = 'removed: (%i, %i)' % (int(event.x), int(event.y))
+            self.last_entry_label.set_text(label_text)
+            point_nr = self.point_summary_dict.get(point.type)
+            self.point_summary_dict[point.type] = point_nr - 1
+            self.update_summary()
+
+    def add_point(self, event):
+        dist, _ = self.find_closest_point(event)
+        if dist > 2 * self.radius:
+            self.points_saved = False
+            point = self.point(event.x,
+                               event.y,
+                               self.point_type,
+                               self.point_type_color.r,
+                               self.point_type_color.g,
+                               self.point_type_color.b,
+                               self.point_type_color.a)
+            self.point_list.append(point)
+            self.draw_circles([point])
+            label_text = '%s (%i, %i)' % (self.point_type,
+                                          int(event.x),
+                                          int(event.y))
+            self.last_entry_label.set_text(label_text)
+            point_nr = self.point_summary_dict.get(self.point_type)
+            self.point_summary_dict[self.point_type] = point_nr + 1
+            self.update_summary()
+
+    def update_summary(self):
+        self.gtk_point_summary_list.clear()
+        for key, value in self.point_summary_dict.items():
+            self.gtk_point_summary_list.append([key, value])
 
     def draw_circles(self, points):
         draw = self.buffers_and_images.get('draw')
@@ -289,17 +349,24 @@ class Handler:
         self.image_height = new_original.buf.get_height()
         self.point_list = []
         self.points_saved = True
+        keys = self.point_summary_dict.keys()
+        self.point_summary_dict = dict.fromkeys(keys, 0)
+        self.update_summary()
         self.zoom()
 
     def load_point_types(self, filename):
         status_string = 'Point types loaded.'
         self.status_bar.push(self.status_msg, status_string)
         self.gtk_point_type_list.clear()
+        self.gtk_point_summary_list.clear()
+        self.point_summary_dict.clear()
         with open(filename, newline='') as csv_file:
             reader = csv.reader(csv_file, delimiter=',')
             reader.__next__()
             for row in reader:
                 self.gtk_point_type_list.append(row)
+                self.point_summary_dict.update({row[1]: 0})
+                self.gtk_point_summary_list.append([row[1], 0])
         self.point_type_button.set_active(0)
         self.point_list = []
         self.points_saved = True
@@ -371,7 +438,7 @@ class Handler:
 
 if __name__ == '__main__':
     builder = Gtk.Builder()
-    builder.add_from_file('data/GUI.glade')
+    builder.add_from_file('data/GUI2.glade')
     signal_handler = Handler(builder)
     builder.connect_signals(signal_handler)
     window = builder.get_object('main_window')
