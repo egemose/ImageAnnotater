@@ -8,6 +8,7 @@
       <column type="gchararray"/>
       <!-- column-name gint -->
       <column type="gint"/>
+      <column type="gint"/>
     </columns>
   </object>
   <object class="GtkListStore" id="point_type_list">
@@ -412,6 +413,17 @@
                           <object class="GtkCellRendererText" id="point_number_cell"/>
                           <attributes>
                             <attribute name="text">1</attribute>
+                          </attributes>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkTreeViewColumn" id="point_size">
+                        <property name="title" translatable="yes">Size</property>
+                        <child>
+                          <object class="GtkCellRendererText" id="point_size_cell"/>
+                          <attributes>
+                            <attribute name="text">2</attribute>
                           </attributes>
                         </child>
                       </object>
