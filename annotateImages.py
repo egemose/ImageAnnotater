@@ -155,11 +155,7 @@ class Handler:
                                                GdkPixbuf.InterpType.BILINEAR)
                 bi.image.set_from_pixbuf(buf_temp)
             except AttributeError:
-                if self.show_missing_image_warning:
-                    status_string = 'Computer annotated image not loaded!'
-                    self.status_bar.push(self.status_warning, status_string)
-                    self.switch_image_button.set_sensitive(False)
-                    self.show_missing_image_warning = False
+                self.warn_annotated_image()
             progress = progress + 0.25
             self.progress_bar.set_fraction(progress)
             yield True
@@ -167,6 +163,13 @@ class Handler:
         self.redraw_points()
         self.progress_bar.set_text('Done!')
         yield False
+
+    def warn_annotated_image(self):
+        if self.show_missing_image_warning:
+            status_string = 'Computer annotated image not loaded!'
+            self.status_bar.push(self.status_warning, status_string)
+            self.switch_image_button.set_sensitive(False)
+            self.show_missing_image_warning = False
 
     def point_type_changed(self, button):
         model = button.get_model()
@@ -210,30 +213,26 @@ class Handler:
         self.pressed_x = event.x
         self.pressed_y = event.y
 
+    def make_point(self, x, y, dist=None, angle=None):
+        point = self.point(self.point_type,
+                           x,
+                           y,
+                           dist,
+                           angle,
+                           self.point_type_color.r,
+                           self.point_type_color.g,
+                           self.point_type_color.b,
+                           self.point_type_color.a)
+        return point
+
     def make_line_marking(self, event):
-        point_start = self.point(self.point_type,
-                                 self.pressed_x,
-                                 self.pressed_y,
-                                 None,
-                                 None,
-                                 self.point_type_color.r,
-                                 self.point_type_color.g,
-                                 self.point_type_color.b,
-                                 self.point_type_color.a)
-        point_stop = self.point(self.point_type,
-                                event.x,
-                                event.y,
-                                None,
-                                None,
-                                self.point_type_color.r,
-                                self.point_type_color.g,
-                                self.point_type_color.b,
-                                self.point_type_color.a)
+        point_start = self.make_point(self.pressed_x, self.pressed_y)
+        point_stop = self.make_point(event.x, event.y)
         self.draw_line_marking_live(point_start, point_stop)
 
     def add_remove_point(self, event_box, event):
         if event.button == 1:
-            self.add_point(event)
+            self.add_marking(event)
         elif event.button == 3:
             self.remove_point(event)
         elif event.button == 2:
@@ -260,13 +259,13 @@ class Handler:
         return dist_keep, p_keep
 
     def remove_point(self, event):
-        if self.check_click(event):
+        if self.check_if_click(event):
             dist, point = self.find_closest_point(event)
             if dist < self.radius:
                 self.points_saved = False
                 self.point_list.remove(point)
                 self.clean_draw_image()
-                self.draw_circles(self.point_list)
+                self.draw_markings(self.point_list)
                 label_text = 'removed: (%i, %i)' % (int(event.x), int(event.y))
                 self.last_entry_label.set_text(label_text)
                 summary = self.point_summary_dict.get(point.type)
@@ -275,7 +274,7 @@ class Handler:
                 self.point_summary_dict[point.type] = new_summary
                 self.update_summary()
 
-    def check_click(self, event, do_drag=False):
+    def check_if_click(self, event, do_drag=False):
         if event.type == Gdk.EventType.BUTTON_PRESS:
             self.do_drag = do_drag
             self.pressed_x = event.x
@@ -288,54 +287,48 @@ class Handler:
                 return True
         return False
 
-    def add_point(self, event):
-        if self.check_click(event, do_drag=True):
-            dist, _ = self.find_closest_point(event)
-            if dist > 2 * self.radius:
-                self.points_saved = False
-                point = self.point(self.point_type,
-                                   event.x,
-                                   event.y,
-                                   None,
-                                   None,
-                                   self.point_type_color.r,
-                                   self.point_type_color.g,
-                                   self.point_type_color.b,
-                                   self.point_type_color.a)
-                self.point_list.append(point)
-                self.draw_circles([point])
-                label_text = '%s (%i, %i)' % (self.point_type,
-                                              int(event.x),
-                                              int(event.y))
-                self.last_entry_label.set_text(label_text)
-                summary = self.point_summary_dict.get(self.point_type)
-                new_summary = self.summary_values(summary.amount +1,
-                                                  summary.size)
-                self.point_summary_dict[self.point_type] = new_summary
-                self.update_summary()
+    def add_marking(self, event):
+        if self.check_if_click(event, do_drag=True):
+            self.add_point(event)
         elif event.type == Gdk.EventType.BUTTON_RELEASE:
-            diff_x = event.x - self.pressed_x
-            diff_y = event.y - self.pressed_y
-            dist = sqrt(diff_x**2+diff_y**2)
-            angle = atan2(-diff_y, diff_x)
-            display_angle = angle / pi * 180
-            point = self.point(self.point_type,
-                               self.pressed_x,
-                               self.pressed_y,
-                               dist,
-                               angle,
-                               self.point_type_color.r,
-                               self.point_type_color.g,
-                               self.point_type_color.b,
-                               self.point_type_color.a)
+            self.add_size_mark(event)
+
+    def add_size_mark(self, event):
+        self.points_saved = False
+        diff_x = event.x - self.pressed_x
+        diff_y = event.y - self.pressed_y
+        dist = sqrt(diff_x ** 2 + diff_y ** 2)
+        angle = atan2(-diff_y, diff_x)
+        display_angle = angle / pi * 180
+        point = self.make_point(self.pressed_x,
+                                self.pressed_y,
+                                dist,
+                                angle)
+        self.point_list.append(point)
+        label_text = '%s %i px, %i degrees' % (self.point_type,
+                                               int(dist),
+                                               int(display_angle))
+        self.last_entry_label.set_text(label_text)
+        summary = self.point_summary_dict.get(self.point_type)
+        new_summary = self.summary_values(summary.amount + 1,
+                                          summary.size + dist)
+        self.point_summary_dict[self.point_type] = new_summary
+        self.update_summary()
+
+    def add_point(self, event):
+        dist, _ = self.find_closest_point(event)
+        if dist > 2 * self.radius:
+            self.points_saved = False
+            point = self.make_point(event.x, event.y)
             self.point_list.append(point)
-            label_text = '%s %i px, %i degrees' % (self.point_type,
-                                                   int(dist),
-                                                   int(display_angle))
+            self.draw_markings([point])
+            label_text = '%s (%i, %i)' % (self.point_type,
+                                          int(event.x),
+                                          int(event.y))
             self.last_entry_label.set_text(label_text)
             summary = self.point_summary_dict.get(self.point_type)
-            new_summary = self.summary_values(summary.amount,
-                                              summary.size + dist)
+            new_summary = self.summary_values(summary.amount + 1,
+                                              summary.size)
             self.point_summary_dict[self.point_type] = new_summary
             self.update_summary()
 
@@ -373,7 +366,7 @@ class Handler:
         draw_buf = Gdk.pixbuf_get_from_surface(surface, 0, 0, width, height)
         self.draw_temp.image.set_from_pixbuf(draw_buf)
 
-    def draw_line_markings(self, point_list):
+    def draw_markings(self, points):
         draw = self.buffers_and_images.get('draw')
         draw_buf = draw.image.get_pixbuf()
         width = draw_buf.get_width()
@@ -382,8 +375,14 @@ class Handler:
         cr = cairo.Context(surface)
         Gdk.cairo_set_source_pixbuf(cr, draw_buf, 0, 0)
         cr.paint()
-        for point in point_list:
-            if point.size is not None:
+        for point in points:
+            if point.size is None:
+                x = int(point.x)
+                y = int(point.y)
+                cr.set_source_rgba(point.r, point.g, point.b, point.a)
+                cr.arc(x, y, self.radius, 0, 2*pi)
+                cr.fill()
+            else:
                 cr.set_source_rgba(point.r, point.g, point.b, point.a)
                 x = int(point.x)
                 y = int(point.y)
@@ -401,26 +400,6 @@ class Handler:
         draw_buf = Gdk.pixbuf_get_from_surface(surface, 0, 0, width, height)
         draw.image.set_from_pixbuf(draw_buf)
 
-    def draw_circles(self, points):
-        draw = self.buffers_and_images.get('draw')
-        draw_buf = draw.image.get_pixbuf()
-        width = draw_buf.get_width()
-        height = draw_buf.get_height()
-        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
-        cr = cairo.Context(surface)
-        Gdk.cairo_set_source_pixbuf(cr, draw_buf, 0, 0)
-        cr.paint()
-        for point in points:
-            if point.size is None:
-                x = int(point.x)
-                y = int(point.y)
-                cr.set_source_rgba(point.r, point.g, point.b, point.a)
-                cr.arc(x, y, self.radius, 0, 2*pi)
-                cr.fill()
-        surface = cr.get_target()
-        draw_buf = Gdk.pixbuf_get_from_surface(surface, 0, 0, width, height)
-        draw.image.set_from_pixbuf(draw_buf)
-
     def redraw_points(self):
         scale_factor = self.scale / self.old_scale
         scaled_points = []
@@ -431,11 +410,10 @@ class Handler:
                 dist = None
             else:
                 dist = p.size * scale_factor
-            new_point = self.point(p.type, x, y, dist, p.angle, p.r, p.g, p.b,
-                                   p.a)
+            new_point = self.point(p.type, x, y, dist, p.angle,
+                                   p.r, p.g, p.b, p.a)
             scaled_points.append(new_point)
-        self.draw_circles(scaled_points)
-        self.draw_line_markings(scaled_points)
+        self.draw_markings(scaled_points)
         self.point_list = scaled_points
 
     @staticmethod
@@ -505,13 +483,16 @@ class Handler:
             reader = csv.reader(csv_file, delimiter=',')
             reader.__next__()
             for row in reader:
-                self.gtk_point_type_list.append(row)
-                self.point_summary_dict.update({row[1]: self.summary_init_values})
-                self.gtk_point_summary_list.append([row[1], 0, 0])
+                self.update_point_types(row)
         self.point_type_button.set_active(0)
         self.point_list = []
         self.points_saved = True
         self.clean_draw_image()
+
+    def update_point_types(self, row):
+        self.gtk_point_type_list.append(row)
+        self.point_summary_dict.update({row[1]: self.summary_init_values})
+        self.gtk_point_summary_list.append([row[1], 0, 0])
 
     def save_points(self, filename):
         status_string = 'points saved'
@@ -537,10 +518,7 @@ class Handler:
         if button.get_label() == 'Save points':
             text = 'Save points as'
             action = Gtk.FileChooserAction.SAVE
-            response = (Gtk.STOCK_CANCEL,
-                        Gtk.ResponseType.CANCEL,
-                        Gtk.STOCK_SAVE,
-                        Gtk.ResponseType.OK)
+            file_button = Gtk.STOCK_SAVE
         else:
             if self.warning_dialog_response():
                 return True
@@ -549,10 +527,11 @@ class Handler:
             elif button.get_label() == 'Load point types':
                 text = 'Choose a file with the point types'
             action = Gtk.FileChooserAction.OPEN
-            response = (Gtk.STOCK_CANCEL,
-                        Gtk.ResponseType.CANCEL,
-                        Gtk.STOCK_OPEN,
-                        Gtk.ResponseType.OK)
+            file_button = Gtk.STOCK_OPEN
+        response = (Gtk.STOCK_CANCEL,
+                    Gtk.ResponseType.CANCEL,
+                    file_button,
+                    Gtk.ResponseType.OK)
         dialog = Gtk.FileChooserDialog(text,
                                        self.main_window,
                                        action,
