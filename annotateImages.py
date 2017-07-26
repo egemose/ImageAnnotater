@@ -32,14 +32,14 @@ class Handler:
         # named tuples used.
         self.buf_and_image = namedtuple('buf_and_image', ['buf', 'image'])
         self.color = namedtuple('color', ['r', 'g', 'b', 'a'])
-        self.point = namedtuple('point', ('type', 'x', 'y', 'size', 'angle')
+        self.point = namedtuple('point', ('image', 'type',
+                                          'x', 'y',
+                                          'size', 'angle')
                                 + self.color._fields)
         self.summary_values = namedtuple('summary_values', ['amount', 'size'])
         # handles to different widgets
         self.main_window = gui_builder.get_object('main_window')
         self.scroll_window = gui_builder.get_object('scroll_window')
-        self.do_scroll = False
-        self.do_drag = False
         self.overlay = gui_builder.get_object('overlay')
         self.label_zoom_level = gui_builder.get_object('zoom_label')
         self.gtk_point_type_list = gui_builder.get_object('point_type_list')
@@ -57,6 +57,8 @@ class Handler:
         self.radius = 10
         self.buffers_and_images = {}
         self.init_draw_area(gui_builder)
+        self.do_scroll = False
+        self.do_drag = False
         self.pressed_x = None
         self.pressed_y = None
         self.draw_temp = None
@@ -64,10 +66,10 @@ class Handler:
         # ready the point type selection
         self.point_type_color = self.hex_color_to_rgba('#FF0000')
         self.point_type = 'None'
+        self.current_image = 'None'
         self.gtk_point_type_list.append(['#FF0000', 'None'])
-        self.gtk_point_summary_list.append(['None', 0, 0])
         self.summary_init_values = self.summary_values(0, 0)
-        self.point_summary_dict = {'None': self.summary_init_values}
+        self.point_summary_dict = {}
         self.point_type_button.set_active(0)
         # init list to store points in
         self.point_list = []
@@ -214,7 +216,8 @@ class Handler:
         self.pressed_y = event.y
 
     def make_point(self, x, y, dist=None, angle=None):
-        point = self.point(self.point_type,
+        point = self.point(self.current_image,
+                           self.point_type,
                            x,
                            y,
                            dist,
@@ -234,7 +237,7 @@ class Handler:
         if event.button == 1:
             self.add_marking(event)
         elif event.button == 3:
-            self.remove_point(event)
+            self.remove_marking(event)
         elif event.button == 2:
             self.button_scroll(event)
         else:
@@ -258,7 +261,7 @@ class Handler:
                 p_keep = p
         return dist_keep, p_keep
 
-    def remove_point(self, event):
+    def remove_marking(self, event):
         if self.check_if_click(event):
             dist, point = self.find_closest_point(event)
             if dist < self.radius:
@@ -268,10 +271,11 @@ class Handler:
                 self.draw_markings(self.point_list)
                 label_text = 'removed: (%i, %i)' % (int(event.x), int(event.y))
                 self.last_entry_label.set_text(label_text)
-                summary = self.point_summary_dict.get(point.type)
+                key = self.current_image + '-' + point.type
+                summary = self.point_summary_dict.get(key)
                 new_summary = self.summary_values(summary.amount - 1,
                                                   summary.size)
-                self.point_summary_dict[point.type] = new_summary
+                self.point_summary_dict[key] = new_summary
                 self.update_summary()
 
     def check_if_click(self, event, do_drag=False):
@@ -309,10 +313,11 @@ class Handler:
                                                int(dist),
                                                int(display_angle))
         self.last_entry_label.set_text(label_text)
-        summary = self.point_summary_dict.get(self.point_type)
+        key = self.current_image + '--' + self.point_type
+        summary = self.point_summary_dict.get(key)
         new_summary = self.summary_values(summary.amount + 1,
                                           summary.size + dist)
-        self.point_summary_dict[self.point_type] = new_summary
+        self.point_summary_dict[key] = new_summary
         self.update_summary()
 
     def add_point(self, event):
@@ -326,18 +331,26 @@ class Handler:
                                           int(event.x),
                                           int(event.y))
             self.last_entry_label.set_text(label_text)
-            summary = self.point_summary_dict.get(self.point_type)
+            key = self.current_image + '--' + self.point_type
+            summary = self.point_summary_dict.get(key)
             new_summary = self.summary_values(summary.amount + 1,
                                               summary.size)
-            self.point_summary_dict[self.point_type] = new_summary
+            self.point_summary_dict[key] = new_summary
             self.update_summary()
 
     def update_summary(self):
         self.gtk_point_summary_list.clear()
-        for key, summary in self.point_summary_dict.items():
-            self.gtk_point_summary_list.append([key,
-                                                summary.amount,
-                                                summary.size])
+        old_image = ''
+        dict_sort = sorted(self.point_summary_dict.items(), key=lambda x: x[0])
+        for key, summary in dict_sort:
+            key_strings = key.split('/')
+            image, point_type = key_strings[-1].split('--')
+            if image != old_image:
+                self.gtk_point_summary_list.append([image, '', ''])
+                old_image = image
+            self.gtk_point_summary_list.append([point_type,
+                                                str(summary.amount),
+                                                str(int(summary.size))])
 
     def draw_line_marking_live(self, point_start, point_stop):
         width = self.draw_buf_temp.get_width()
@@ -403,6 +416,7 @@ class Handler:
     def redraw_points(self):
         scale_factor = self.scale / self.old_scale
         scaled_points = []
+        draw_points = []
         for p in self.point_list:
             x = p.x * scale_factor
             y = p.y * scale_factor
@@ -410,10 +424,12 @@ class Handler:
                 dist = None
             else:
                 dist = p.size * scale_factor
-            new_point = self.point(p.type, x, y, dist, p.angle,
+            new_point = self.point(p.image, p.type, x, y, dist, p.angle,
                                    p.r, p.g, p.b, p.a)
             scaled_points.append(new_point)
-        self.draw_markings(scaled_points)
+            if p.image == self.current_image:
+                draw_points.append(new_point)
+        self.draw_markings(draw_points)
         self.point_list = scaled_points
 
     @staticmethod
@@ -447,6 +463,7 @@ class Handler:
         dialog.add_filter(filter_any)
 
     def open_image(self, filename):
+        self.current_image = filename
         status_string = 'Image and computer annotated image opened.'
         self.status_bar.push(self.status_msg, status_string)
         self.switch_image_button.set_sensitive(True)
@@ -466,10 +483,12 @@ class Handler:
         self.scale = 1
         self.image_width = new_original.buf.get_width()
         self.image_height = new_original.buf.get_height()
-        self.point_list = []
-        self.points_saved = True
-        keys = self.point_summary_dict.keys()
-        self.point_summary_dict = dict.fromkeys(keys, self.summary_init_values)
+        keys = []
+        for pt in self.gtk_point_type_list:
+            keys.append(self.current_image + '--' + pt[1])
+        if keys[0] not in self.point_summary_dict:
+            new_dict = dict.fromkeys(keys, self.summary_init_values)
+            self.point_summary_dict.update(new_dict)
         self.update_summary()
         self.zoom()
 
@@ -479,6 +498,8 @@ class Handler:
         self.gtk_point_type_list.clear()
         self.gtk_point_summary_list.clear()
         self.point_summary_dict.clear()
+        image = self.current_image.split('/')
+        self.gtk_point_summary_list.append([image[-1], '', ''])
         with open(filename, newline='') as csv_file:
             reader = csv.reader(csv_file, delimiter=',')
             reader.__next__()
@@ -491,14 +512,15 @@ class Handler:
 
     def update_point_types(self, row):
         self.gtk_point_type_list.append(row)
-        self.point_summary_dict.update({row[1]: self.summary_init_values})
-        self.gtk_point_summary_list.append([row[1], 0, 0])
+        key = self.current_image + '--' + row[1]
+        self.point_summary_dict.update({key: self.summary_init_values})
+        self.gtk_point_summary_list.append([row[1], '0', '0'])
 
     def save_points(self, filename):
         status_string = 'points saved'
         self.status_bar.push(self.status_msg, status_string)
         self.points_saved = True
-        header = ['type', 'x', 'y', 'size', 'angle',
+        header = ['image', 'type', 'x', 'y', 'size', 'angle',
                   'red', 'green', 'blue', 'alpha']
         with open(filename, 'w') as csv_file:
             writer = csv.writer(csv_file)
@@ -510,24 +532,74 @@ class Handler:
                     dist = None
                 else:
                     dist = p.size / self.scale
-                writer.writerow([p.type, x, y, dist, p.angle,
+                writer.writerow([p.image, p.type, x, y, dist, p.angle,
                                  p.r, p.g, p.b, p.a])
+
+    def load_points(self, filename):
+        status_string = 'Point types loaded.'
+        self.status_bar.push(self.status_msg, status_string)
+        self.point_list = []
+        self.gtk_point_summary_list.clear()
+        with open(filename, newline='') as csv_file:
+            reader = csv.reader(csv_file, delimiter=',')
+            reader.__next__()
+            for row in reader:
+                image = row[0]
+                point_type = row[1]
+                x = float(row[2])
+                y = float(row[3])
+                if row[4] != '':
+                    dist = float(row[4])
+                    angle = float(row[5])
+                else:
+                    dist = None
+                    angle = None
+                r = float(row[6])
+                g = float(row[7])
+                b = float(row[8])
+                a = float(row[9])
+                self.point_list.append(self.point(image, point_type, x, y,
+                                                  dist, angle, r, g, b, a))
+        self.make_summary_dict()
+        self.update_summary()
+        self.points_saved = True
+        self.redraw_points()
+
+    def make_summary_dict(self):
+        self.point_summary_dict.clear()
+        for p in self.point_list:
+            key = p.image + '--' + p.type
+            if p.size is None:
+                size = 0
+            else:
+                size = p.size
+            if key not in self.point_summary_dict:
+                values = self.summary_values(1, size)
+                self.point_summary_dict.update({key: values})
+            else:
+                values = self.point_summary_dict.get(key)
+                new_values = self.summary_values(values.amount + 1,
+                                                 values.size + size)
+                self.point_summary_dict.update({key: new_values})
 
     def file_dialog(self, button):
         text = 'Choose a file'
+        action = Gtk.FileChooserAction.OPEN
+        file_button = Gtk.STOCK_OPEN
         if button.get_label() == 'Save points':
             text = 'Save points as'
             action = Gtk.FileChooserAction.SAVE
             file_button = Gtk.STOCK_SAVE
-        else:
+        elif button.get_label() == 'Load points':
             if self.warning_dialog_response():
                 return True
-            if button.get_label() == 'Open Image':
-                text = 'Choose a image to open'
-            elif button.get_label() == 'Load point types':
-                text = 'Choose a file with the point types'
-            action = Gtk.FileChooserAction.OPEN
-            file_button = Gtk.STOCK_OPEN
+            text = 'Choose a file with the points'
+        elif button.get_label() == 'Open Image':
+            text = 'Choose a image to open'
+        elif button.get_label() == 'Load point types':
+            if self.warning_dialog_response():
+                return True
+            text = 'Choose a file with the point types'
         response = (Gtk.STOCK_CANCEL,
                     Gtk.ResponseType.CANCEL,
                     file_button,
@@ -552,6 +624,11 @@ class Handler:
             response = dialog.run()
             if response == Gtk.ResponseType.OK:
                 self.save_points(dialog.get_filename())
+        elif button.get_label() == 'Load points':
+            self.add_text_filters(dialog)
+            response = dialog.run()
+            if response == Gtk.ResponseType.OK:
+                self.load_points(dialog.get_filename())
         dialog.destroy()
 
 

@@ -7,8 +7,8 @@
       <!-- column-name gchararray -->
       <column type="gchararray"/>
       <!-- column-name gint -->
-      <column type="gint"/>
-      <column type="gint"/>
+      <column type="gchararray"/>
+      <column type="gchararray"/>
     </columns>
   </object>
   <object class="GtkListStore" id="point_type_list">
@@ -82,6 +82,21 @@
                     <property name="label" translatable="yes">Save points</property>
                     <property name="use_underline">True</property>
                     <property name="stock_id">gtk-save</property>
+                    <signal name="clicked" handler="file_dialog" swapped="no"/>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="homogeneous">False</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkToolButton" id="load_points">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="tooltip_text" translatable="yes">Load points</property>
+                    <property name="label" translatable="yes">Load points</property>
+                    <property name="use_underline">True</property>
+                    <property name="stock_id">gtk-add</property>
                     <signal name="clicked" handler="file_dialog" swapped="no"/>
                   </object>
                   <packing>
