@@ -271,7 +271,7 @@ class Handler:
                 self.draw_markings(self.point_list)
                 label_text = 'removed: (%i, %i)' % (int(event.x), int(event.y))
                 self.last_entry_label.set_text(label_text)
-                key = self.current_image + '-' + point.type
+                key = self.current_image + '--' + point.type
                 summary = self.point_summary_dict.get(key)
                 new_summary = self.summary_values(summary.amount - 1,
                                                   summary.size)
