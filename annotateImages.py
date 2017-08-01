@@ -245,9 +245,16 @@ class Handler:
         point_stop = self.make_point(event.x, event.y)
         self.draw_line_marking_live(point_start, point_stop)
 
+    def handle_shortcuts(self, event_box, event):
+        keyname = Gdk.keyval_name(event.keyval)
+
     def add_remove_point(self, event_box, event):
+        print(event.state)
         if event.button == 1:
-            self.add_marking(event)
+            if event.state & Gdk.ModifierType.CONTROL_MASK:
+                self.remove_marking(event)
+            else:
+                self.add_marking(event)
         elif event.button == 3:
             self.remove_marking(event)
         elif event.button == 2:
