@@ -194,6 +194,15 @@ class Handler:
             self.point_type = model[active][1]
         self.update_summary()
 
+    def handle_shortcuts(self, event_box, event):
+        key_name = Gdk.keyval_name(event.keyval)
+        try:
+            idx = int(key_name)-1
+            if idx in range(len(self.gtk_point_type_list)):
+                self.point_type_button.set_active(idx)
+        except ValueError:
+            pass
+
     def clean_draw_image(self):
         width = self.image_width * self.scale
         height = self.image_height * self.scale
@@ -215,17 +224,16 @@ class Handler:
         scroll_x = h_adjust.get_value()
         scroll_y = v_adjust.get_value()
         change_x = self.pressed_x - event.x
-        if abs(change_x) > 5:
+        change_y = self.pressed_y - event.y
+        if abs(change_x) + abs(change_y) > 0:
             scroll_x = scroll_x + change_x
             h_adjust.set_value(scroll_x)
             self.scroll_window.set_hadjustment(h_adjust)
-        change_y = self.pressed_y - event.y
-        if abs(change_y) > 5:
             scroll_y = scroll_y + change_y
             v_adjust.set_value(scroll_y)
             self.scroll_window.set_vadjustment(v_adjust)
-        self.pressed_x = event.x
-        self.pressed_y = event.y
+            self.pressed_x = event.x
+            self.pressed_y = event.y
 
     def make_point(self, x, y, dist=None, angle=None):
         point = self.point(self.current_image,
@@ -245,11 +253,7 @@ class Handler:
         point_stop = self.make_point(event.x, event.y)
         self.draw_line_marking_live(point_start, point_stop)
 
-    def handle_shortcuts(self, event_box, event):
-        keyname = Gdk.keyval_name(event.keyval)
-
     def add_remove_point(self, event_box, event):
-        print(event.state)
         if event.button == 1:
             if event.state & Gdk.ModifierType.CONTROL_MASK:
                 self.remove_marking(event)
@@ -538,8 +542,9 @@ class Handler:
         with open(filename, newline='') as csv_file:
             reader = csv.reader(csv_file, delimiter=',')
             reader.__next__()
-            for row in reader:
-                self.update_point_types(row)
+            sort_points = sorted(reader, key=lambda x: x[1])
+            for point in sort_points:
+                self.update_point_types(point)
         self.point_type_button.set_active(0)
         self.point_list = []
         self.points_saved = True
