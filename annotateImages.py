@@ -36,7 +36,8 @@ class Handler:
                                           'x', 'y',
                                           'size', 'angle')
                                 + self.color._fields)
-        self.summary_values = namedtuple('summary_values', ['amount', 'size'])
+        self.summary_values = namedtuple('summary_values', ['amount', 'size',
+                                                            'color'])
         # handles to different widgets
         self.main_window = gui_builder.get_object('main_window')
         self.scroll_window = gui_builder.get_object('scroll_window')
@@ -68,7 +69,9 @@ class Handler:
         self.point_type = 'None'
         self.current_image = 'None'
         self.gtk_point_type_list.append(['#FF0000', 'None'])
-        self.summary_init_values = self.summary_values(0, 0)
+        self.font = 'arial 11'
+        self.bold_font = 'arial bold 11'
+        self.background_color = '#FFFFFF'
         self.point_summary_dict = {}
         self.point_type_button.set_active(0)
         # init list to store points in
@@ -79,6 +82,9 @@ class Handler:
         self.old_scale = 1
         self.image_width = 100
         self.image_height = 100
+
+    def summary_init_values(self, color='#FFFFFF'):
+        return self.summary_values(0, 0, color)
 
     def init_draw_area(self, gui_builder):
         images = ['background_image',
@@ -113,6 +119,11 @@ class Handler:
         rgb.append(1)
         rgba = self.color._make(rgb)
         return rgba
+
+    def rgba_color_to_hex(self, rgba):
+        rgb = (int(rgba.r*255), int(rgba.g*255), int(rgba.b*255))
+        hex_color = '#%02X%02X%02X' % rgb
+        return hex_color
 
     def switch_images(self, button):
         original = self.buffers_and_images.get('original')
@@ -181,6 +192,7 @@ class Handler:
             color = self.hex_color_to_rgba(code)
             self.point_type_color = color
             self.point_type = model[active][1]
+        self.update_summary()
 
     def clean_draw_image(self):
         width = self.image_width * self.scale
@@ -274,7 +286,7 @@ class Handler:
                 key = self.current_image + '--' + point.type
                 summary = self.point_summary_dict.get(key)
                 new_summary = self.summary_values(summary.amount - 1,
-                                                  summary.size)
+                                                  summary.size, summary.color)
                 self.point_summary_dict[key] = new_summary
                 self.update_summary()
 
@@ -316,7 +328,7 @@ class Handler:
         key = self.current_image + '--' + self.point_type
         summary = self.point_summary_dict.get(key)
         new_summary = self.summary_values(summary.amount + 1,
-                                          summary.size + dist)
+                                          summary.size + dist, summary.color)
         self.point_summary_dict[key] = new_summary
         self.update_summary()
 
@@ -334,7 +346,7 @@ class Handler:
             key = self.current_image + '--' + self.point_type
             summary = self.point_summary_dict.get(key)
             new_summary = self.summary_values(summary.amount + 1,
-                                              summary.size)
+                                              summary.size, summary.color)
             self.point_summary_dict[key] = new_summary
             self.update_summary()
 
@@ -343,14 +355,27 @@ class Handler:
         old_image = ''
         dict_sort = sorted(self.point_summary_dict.items(), key=lambda x: x[0])
         for key, summary in dict_sort:
-            key_strings = key.split('/')
-            image, point_type = key_strings[-1].split('--')
+            full_image, point_type = key.split('--')
+            if full_image == self.current_image:
+                image_font = self.bold_font
+                if point_type == self.point_type:
+                    point_font = self.bold_font
+                else:
+                    point_font = self.font
+            else:
+                image_font = self.font
+                point_font = self.font
+            image = full_image.split('/')[-1]
             if image != old_image:
-                self.gtk_point_summary_list.append([image, '', ''])
+                self.gtk_point_summary_list.append([image, '', '',
+                                                    image_font,
+                                                    self.background_color])
                 old_image = image
             self.gtk_point_summary_list.append([point_type,
                                                 str(summary.amount),
-                                                str(int(summary.size))])
+                                                str(int(summary.size)),
+                                                point_font,
+                                                summary.color])
 
     def draw_line_marking_live(self, point_start, point_stop):
         width = self.draw_buf_temp.get_width()
@@ -413,8 +438,11 @@ class Handler:
         draw_buf = Gdk.pixbuf_get_from_surface(surface, 0, 0, width, height)
         draw.image.set_from_pixbuf(draw_buf)
 
-    def redraw_points(self):
-        scale_factor = self.scale / self.old_scale
+    def redraw_points(self, old_scale=True):
+        if old_scale:
+            scale_factor = self.scale / self.old_scale
+        else:
+            scale_factor = self.scale
         scaled_points = []
         draw_points = []
         for p in self.point_list:
@@ -483,12 +511,11 @@ class Handler:
         self.scale = 1
         self.image_width = new_original.buf.get_width()
         self.image_height = new_original.buf.get_height()
-        keys = []
         for pt in self.gtk_point_type_list:
-            keys.append(self.current_image + '--' + pt[1])
-        if keys[0] not in self.point_summary_dict:
-            new_dict = dict.fromkeys(keys, self.summary_init_values)
-            self.point_summary_dict.update(new_dict)
+            key = self.current_image + '--' + pt[1]
+            if key not in self.point_summary_dict:
+                new_dict = {key: self.summary_init_values(pt[0])}
+                self.point_summary_dict.update(new_dict)
         self.update_summary()
         self.zoom()
 
@@ -499,7 +526,8 @@ class Handler:
         self.gtk_point_summary_list.clear()
         self.point_summary_dict.clear()
         image = self.current_image.split('/')
-        self.gtk_point_summary_list.append([image[-1], '', ''])
+        self.gtk_point_summary_list.append([image[-1], '', '', self.font,
+                                            self.background_color])
         with open(filename, newline='') as csv_file:
             reader = csv.reader(csv_file, delimiter=',')
             reader.__next__()
@@ -513,8 +541,8 @@ class Handler:
     def update_point_types(self, row):
         self.gtk_point_type_list.append(row)
         key = self.current_image + '--' + row[1]
-        self.point_summary_dict.update({key: self.summary_init_values})
-        self.gtk_point_summary_list.append([row[1], '0', '0'])
+        self.point_summary_dict.update({key: self.summary_init_values(row[0])})
+        self.update_summary()
 
     def save_points(self, filename):
         status_string = 'points saved'
@@ -563,24 +591,31 @@ class Handler:
         self.make_summary_dict()
         self.update_summary()
         self.points_saved = True
-        self.redraw_points()
+        self.redraw_points(old_scale=False)
 
     def make_summary_dict(self):
         self.point_summary_dict.clear()
         for p in self.point_list:
+            color = self.rgba_color_to_hex(p)
             key = p.image + '--' + p.type
             if p.size is None:
                 size = 0
             else:
                 size = p.size
             if key not in self.point_summary_dict:
-                values = self.summary_values(1, size)
+                values = self.summary_values(1, size, color)
                 self.point_summary_dict.update({key: values})
             else:
                 values = self.point_summary_dict.get(key)
                 new_values = self.summary_values(values.amount + 1,
-                                                 values.size + size)
+                                                 values.size + size,
+                                                 color)
                 self.point_summary_dict.update({key: new_values})
+        for pt in self.gtk_point_type_list:
+            key = self.current_image + '--' + pt[1]
+            if key not in self.point_summary_dict:
+                new_dict = {key: self.summary_init_values(pt[0])}
+                self.point_summary_dict.update(new_dict)
 
     def file_dialog(self, button):
         text = 'Choose a file'
