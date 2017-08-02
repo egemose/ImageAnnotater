@@ -46,10 +46,18 @@ class Handler:
         self.h_adjust = self.scroll_window.get_hadjustment()
         self.overlay = gui_builder.get_object('overlay')
         self.label_zoom_level = gui_builder.get_object('zoom_label')
+        self.save_points_button = gui_builder.get_object('save_points')
+        self.open_image_button = gui_builder.get_object('open_image')
+        self.load_point_type_button = gui_builder.get_object('load_point_type')
+        self.load_points_button = gui_builder.get_object('load_points')
+        self.open_dir_button = gui_builder.get_object('open_image_folder')
+        self.zoom_in_button = gui_builder.get_object('zoom_in')
+        self.zoom_out_button = gui_builder.get_object('zoom_out')
         self.gtk_point_type_list = gui_builder.get_object('point_type_list')
         self.gtk_point_summary_list = gui_builder.get_object('point_summary')
         self.point_type_button = gui_builder.get_object('select_point_type_box')
         self.switch_image_button = gui_builder.get_object('switch_image')
+        self.switch_image_button.set_sensitive(False)
         self.progress_bar = gui_builder.get_object('progress_bar')
         self.last_entry_label = gui_builder.get_object('last_entry')
         self.next_image_button = gui_builder.get_object('open_next_image')
@@ -205,8 +213,48 @@ class Handler:
 
     def handle_shortcuts(self, event_box, event):
         key_name = Gdk.keyval_name(event.keyval)
+        if event.state & Gdk.ModifierType.CONTROL_MASK:
+            if key_name == 's':
+                self.save_points_shortcut()
+            elif key_name == 'o':
+                self.file_dialog(self.open_image_button)
+            elif key_name == 'n':
+                self.open_next_image()
+            elif key_name == 'l':
+                self.file_dialog(self.load_point_type_button)
+            elif key_name == 'p':
+                self.file_dialog(self.load_points_button)
+            elif key_name == 'q':
+                self.delete_window()
+            elif key_name == 'd':
+                self.file_dialog(self.open_dir_button)
+            elif key_name == 'less':
+                self.switch_image_shortcut()
+            elif key_name == 'comma':
+                self.zoom_pressed(self.zoom_out_button)
+            elif key_name == 'period':
+                self.zoom_pressed(self.zoom_in_button)
+            else:
+                print(key_name)
+        else:
+            self.switch_point_type(key_name)
+
+    def save_points_shortcut(self):
+        if self.current_point_file is None:
+            self.file_dialog(self.save_points_button)
+        else:
+            self.save_points(self.current_point_file)
+
+    def switch_image_shortcut(self):
+        if self.switch_image_button.get_sensitive():
+            if self.switch_image_button.get_active():
+                self.switch_image_button.set_active(False)
+            else:
+                self.switch_image_button.set_active(True)
+
+    def switch_point_type(self, key_name):
         try:
-            idx = int(key_name)-1
+            idx = int(key_name) - 1
             if idx in range(len(self.gtk_point_type_list)):
                 self.point_type_button.set_active(idx)
         except ValueError:
@@ -485,6 +533,9 @@ class Handler:
             self.open_image(new_image)
         if idx + 1 == len(self.list_of_images):
             self.next_image_button.set_sensitive(False)
+        else:
+            status_string = 'No more images in folder'
+            self.status_bar.push(self.status_msg, status_string)
 
     def get_list_of_images(self):
         files = list(self.get_files_in_dir())
@@ -587,6 +638,7 @@ class Handler:
         self.update_summary()
 
     def save_points(self, filename):
+        self.current_point_file = filename
         status_string = 'points saved'
         self.status_bar.push(self.status_msg, status_string)
         self.points_saved = True
