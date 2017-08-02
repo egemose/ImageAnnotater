@@ -10,16 +10,18 @@ from gi.repository import Gtk, Gdk, GdkPixbuf, GObject
 
 
 def cl_arg():
-    parser = argparse.ArgumentParser(description='GUI to annotate images.')
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.MetavarTypeHelpFormatter,
+        description='GUI to annotate images.')
     parser.add_argument('-i', '--images',
                         type=str,
                         help='Folder with images (%(type)s).')
     parser.add_argument('-t', '--types',
                         type=str,
-                        help='File with point types in csv (%(type)).')
+                        help='File with point types in csv (%(type)s).')
     parser.add_argument('-p', '--points',
                         type=str,
-                        help='File of saved points in csv (%(type)).')
+                        help='File of saved points in csv (%(type)s).')
     arguments = parser.parse_args()
     return arguments
 
