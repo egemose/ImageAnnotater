@@ -41,6 +41,8 @@ class Handler:
         # handles to different widgets
         self.main_window = gui_builder.get_object('main_window')
         self.scroll_window = gui_builder.get_object('scroll_window')
+        self.v_adjust = self.scroll_window.get_vadjustment()
+        self.h_adjust = self.scroll_window.get_hadjustment()
         self.overlay = gui_builder.get_object('overlay')
         self.label_zoom_level = gui_builder.get_object('zoom_label')
         self.gtk_point_type_list = gui_builder.get_object('point_type_list')
@@ -120,7 +122,8 @@ class Handler:
         rgba = self.color._make(rgb)
         return rgba
 
-    def rgba_color_to_hex(self, rgba):
+    @staticmethod
+    def rgba_color_to_hex(rgba):
         rgb = (int(rgba.r*255), int(rgba.g*255), int(rgba.b*255))
         hex_color = '#%02X%02X%02X' % rgb
         return hex_color
@@ -219,21 +222,14 @@ class Handler:
             self.scroll(event)
 
     def scroll(self, event):
-        v_adjust = self.scroll_window.get_vadjustment()
-        h_adjust = self.scroll_window.get_hadjustment()
-        scroll_x = h_adjust.get_value()
-        scroll_y = v_adjust.get_value()
+        scroll_x = self.h_adjust.get_value()
+        scroll_y = self.v_adjust.get_value()
         change_x = self.pressed_x - event.x
         change_y = self.pressed_y - event.y
-        if abs(change_x) + abs(change_y) > 0:
-            scroll_x = scroll_x + change_x
-            h_adjust.set_value(scroll_x)
-            self.scroll_window.set_hadjustment(h_adjust)
-            scroll_y = scroll_y + change_y
-            v_adjust.set_value(scroll_y)
-            self.scroll_window.set_vadjustment(v_adjust)
-            self.pressed_x = event.x
-            self.pressed_y = event.y
+        new_scroll_x = scroll_x + change_x
+        self.h_adjust.set_value(new_scroll_x)
+        new_scroll_y = scroll_y + change_y
+        self.v_adjust.set_value(new_scroll_y)
 
     def make_point(self, x, y, dist=None, angle=None):
         point = self.point(self.current_image,
