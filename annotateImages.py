@@ -52,6 +52,8 @@ class Handler:
         self.switch_image_button = gui_builder.get_object('switch_image')
         self.progress_bar = gui_builder.get_object('progress_bar')
         self.last_entry_label = gui_builder.get_object('last_entry')
+        self.next_image_button = gui_builder.get_object('open_next_image')
+        self.next_image_button.set_sensitive(False)
         # setup the status bar
         self.status_bar = gui_builder.get_object('status_bar')
         self.status_msg = self.status_bar.get_context_id('Message')
@@ -71,6 +73,9 @@ class Handler:
         self.point_type_color = self.hex_color_to_rgba('#FF0000')
         self.point_type = 'None'
         self.current_image = 'None'
+        self.list_of_images = []
+        self.image_folder = None
+        self.current_point_file = None
         self.gtk_point_type_list.append(['#FF0000', 'None'])
         self.font = 'arial 11'
         self.bold_font = 'arial bold 11'
@@ -468,6 +473,28 @@ class Handler:
         self.draw_markings(draw_points)
         self.point_list = scaled_points
 
+    def open_next_image(self, button=None):
+        if not self.list_of_images:
+            self.get_list_of_images()
+        try:
+            idx = self.list_of_images.index(self.current_image) + 1
+        except ValueError:
+            idx = 0
+        if idx < len(self.list_of_images):
+            new_image = self.list_of_images[idx]
+            self.open_image(new_image)
+        if idx + 1 == len(self.list_of_images):
+            self.next_image_button.set_sensitive(False)
+
+    def get_list_of_images(self):
+        files = list(self.get_files_in_dir())
+        self.list_of_images = sorted(files, key=lambda x: x)
+
+    def get_files_in_dir(self):
+        for file in os.scandir(self.image_folder):
+            if file.path.endswith('JPG'):
+                yield file.path
+
     @staticmethod
     def add_image_filters(dialog):
         filter_jpg = Gtk.FileFilter()
@@ -498,10 +525,16 @@ class Handler:
         filter_any.add_pattern('*')
         dialog.add_filter(filter_any)
 
+    def open_image_folder(self, filename):
+        self.image_folder = filename
+        self.open_next_image()
+
     def open_image(self, filename):
         self.current_image = filename
+        self.image_folder = os.path.dirname(filename)
         status_string = 'Image and computer annotated image opened.'
         self.status_bar.push(self.status_msg, status_string)
+        self.next_image_button.set_sensitive(True)
         self.switch_image_button.set_sensitive(True)
         self.show_missing_image_warning = True
         original = self.buffers_and_images.get('original')
@@ -638,12 +671,15 @@ class Handler:
             if self.warning_dialog_response():
                 return True
             text = 'Choose a file with the points'
-        elif button.get_label() == 'Open Image':
+        elif button.get_label() == 'Open image':
             text = 'Choose a image to open'
         elif button.get_label() == 'Load point types':
             if self.warning_dialog_response():
                 return True
             text = 'Choose a file with the point types'
+        elif button.get_label() == 'Open image folder':
+            text = 'choose a folder with images'
+            action = Gtk.FileChooserAction.SELECT_FOLDER
         response = (Gtk.STOCK_CANCEL,
                     Gtk.ResponseType.CANCEL,
                     file_button,
@@ -664,9 +700,8 @@ class Handler:
                 self.load_point_types(dialog.get_filename())
         elif button.get_label() == 'Save points':
             dialog.set_do_overwrite_confirmation(True)
-            image_folder = os.path.dirname(self.current_image)
-            if image_folder != '':
-                dialog.set_current_folder(image_folder)
+            if self.image_folder is not None:
+                dialog.set_current_folder(self.image_folder)
             self.add_text_filters(dialog)
             response = dialog.run()
             if response == Gtk.ResponseType.OK:
@@ -676,6 +711,10 @@ class Handler:
             response = dialog.run()
             if response == Gtk.ResponseType.OK:
                 self.load_points(dialog.get_filename())
+        elif button.get_label() == 'Open image folder':
+            response = dialog.run()
+            if response == Gtk.ResponseType.OK:
+                self.open_image_folder(dialog.get_filename())
         dialog.destroy()
 
 

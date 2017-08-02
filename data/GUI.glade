@@ -51,6 +51,21 @@
                 <property name="toolbar_style">icons</property>
                 <property name="icon_size">1</property>
                 <child>
+                  <object class="GtkToolButton" id="open_image_folder">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="tooltip_text" translatable="yes">Open image folder</property>
+                    <property name="label" translatable="yes">Open image folder</property>
+                    <property name="use_underline">True</property>
+                    <property name="stock_id">gtk-directory</property>
+                    <signal name="clicked" handler="file_dialog" swapped="no"/>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="homogeneous">False</property>
+                  </packing>
+                </child>
+                <child>
                   <object class="GtkToolButton" id="open_image">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
@@ -59,6 +74,21 @@
                     <property name="use_underline">True</property>
                     <property name="stock_id">gtk-open</property>
                     <signal name="clicked" handler="file_dialog" swapped="no"/>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="homogeneous">False</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkToolButton" id="open_next_image">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="tooltip_text" translatable="yes">Open next image</property>
+                    <property name="label" translatable="yes">Open next image</property>
+                    <property name="use_underline">True</property>
+                    <property name="stock_id">gtk-media-next</property>
+                    <signal name="clicked" handler="open_next_image" swapped="no"/>
                   </object>
                   <packing>
                     <property name="expand">False</property>
