@@ -1,5 +1,6 @@
-import os
+import argparse
 import csv
+import os
 from collections import namedtuple
 from math import sqrt, pi, atan2, cos, sin
 import cairo
@@ -8,8 +9,32 @@ gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gdk, GdkPixbuf, GObject
 
 
-class PointsNotSavedDialog(Gtk.Dialog):
+def cl_arg():
+    parser = argparse.ArgumentParser(description='GUI to annotate images.')
+    parser.add_argument('-i', '--images',
+                        type=str,
+                        help='Folder with images (%(type)s).')
+    parser.add_argument('-t', '--types',
+                        type=str,
+                        help='File with point types in csv (%(type)).')
+    parser.add_argument('-p', '--points',
+                        type=str,
+                        help='File of saved points in csv (%(type)).')
+    arguments = parser.parse_args()
+    return arguments
 
+
+def main(handler):
+    args = cl_arg()
+    if args.images:
+        handler.open_image_folder(args.images)
+    if args.types:
+        handler.load_point_types(args.types)
+    if args.points:
+        handler.load_points(args.points)
+
+
+class PointsNotSavedDialog(Gtk.Dialog):
     def __init__(self, parent):
         header = 'Points not saved!'
         response = (Gtk.STOCK_CANCEL,
@@ -131,14 +156,14 @@ class Handler:
 
     def hex_color_to_rgba(self, hex_color):
         h = hex_color.lstrip('#')
-        rgb = [int(h[i:i + 2], 16)/255 for i in (0, 2, 4)]
+        rgb = [int(h[i:i + 2], 16) / 255 for i in (0, 2, 4)]
         rgb.append(1)
         rgba = self.color._make(rgb)
         return rgba
 
     @staticmethod
     def rgba_color_to_hex(rgba):
-        rgb = (int(rgba.r*255), int(rgba.g*255), int(rgba.b*255))
+        rgb = (int(rgba.r * 255), int(rgba.g * 255), int(rgba.b * 255))
         hex_color = '#%02X%02X%02X' % rgb
         return hex_color
 
@@ -234,8 +259,6 @@ class Handler:
                 self.zoom_pressed(self.zoom_out_button)
             elif key_name == 'period':
                 self.zoom_pressed(self.zoom_in_button)
-            else:
-                print(key_name)
         else:
             self.switch_point_type(key_name)
 
@@ -328,7 +351,7 @@ class Handler:
         dist_keep = 1000000
         p_keep = None
         for p in self.point_list:
-            dist = sqrt((p.x-point.x)**2+(p.y-point.y)**2)
+            dist = sqrt((p.x - point.x) ** 2 + (p.y - point.y) ** 2)
             if dist < dist_keep:
                 dist_keep = dist
                 p_keep = p
@@ -451,7 +474,7 @@ class Handler:
                            point_start.a)
         x = int(point_start.x)
         y = int(point_start.y)
-        cr.arc(x, y, self.radius, 0, 2*pi)
+        cr.arc(x, y, self.radius, 0, 2 * pi)
         cr.fill()
         cr.move_to(x, y)
         x = int(point_stop.x)
@@ -459,7 +482,7 @@ class Handler:
         cr.line_to(x, y)
         cr.set_line_width(3)
         cr.stroke()
-        cr.arc(x, y, self.radius/2, 0, 2 * pi)
+        cr.arc(x, y, self.radius / 2, 0, 2 * pi)
         cr.fill()
         surface = cr.get_target()
         draw_buf = Gdk.pixbuf_get_from_surface(surface, 0, 0, width, height)
@@ -479,13 +502,13 @@ class Handler:
                 x = int(point.x)
                 y = int(point.y)
                 cr.set_source_rgba(point.r, point.g, point.b, point.a)
-                cr.arc(x, y, self.radius, 0, 2*pi)
+                cr.arc(x, y, self.radius, 0, 2 * pi)
                 cr.fill()
             else:
                 cr.set_source_rgba(point.r, point.g, point.b, point.a)
                 x = int(point.x)
                 y = int(point.y)
-                cr.arc(x, y, self.radius, 0, 2*pi)
+                cr.arc(x, y, self.radius, 0, 2 * pi)
                 cr.fill()
                 cr.move_to(x, y)
                 x = int(x + point.size * cos(point.angle))
@@ -493,7 +516,7 @@ class Handler:
                 cr.line_to(x, y)
                 cr.set_line_width(3)
                 cr.stroke()
-                cr.arc(x, y, self.radius/2, 0, 2 * pi)
+                cr.arc(x, y, self.radius / 2, 0, 2 * pi)
                 cr.fill()
         surface = cr.get_target()
         draw_buf = Gdk.pixbuf_get_from_surface(surface, 0, 0, width, height)
@@ -777,4 +800,5 @@ if __name__ == '__main__':
     builder.connect_signals(signal_handler)
     window = builder.get_object('main_window')
     window.show_all()
+    main(signal_handler)
     Gtk.main()
