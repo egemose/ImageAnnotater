@@ -1,3 +1,4 @@
+import os
 import csv
 from collections import namedtuple
 from math import sqrt, pi, atan2, cos, sin
@@ -663,6 +664,9 @@ class Handler:
                 self.load_point_types(dialog.get_filename())
         elif button.get_label() == 'Save points':
             dialog.set_do_overwrite_confirmation(True)
+            image_folder = os.path.dirname(self.current_image)
+            if image_folder != '':
+                dialog.set_current_folder(image_folder)
             self.add_text_filters(dialog)
             response = dialog.run()
             if response == Gtk.ResponseType.OK:
