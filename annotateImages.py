@@ -27,7 +27,10 @@ def cl_arg():
 def main(handler):
     args = cl_arg()
     if args.images:
-        handler.open_image_folder(args.images)
+        if os.path.isdir(args.images):
+            handler.open_image_folder(args.images)
+        else:
+            handler.open_image(args.images)
     if args.types:
         handler.load_point_types(args.types)
     if args.points:
