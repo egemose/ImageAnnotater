@@ -75,7 +75,6 @@ class Handler:
         self.v_adjust = self.scroll_window.get_vadjustment()
         self.h_adjust = self.scroll_window.get_hadjustment()
         self.overlay = gui_builder.get_object('overlay')
-        self.label_zoom_level = gui_builder.get_object('zoom_label')
         self.save_points_button = gui_builder.get_object('save_points')
         self.open_image_button = gui_builder.get_object('open_image')
         self.load_point_type_button = gui_builder.get_object('load_point_type')
@@ -83,6 +82,7 @@ class Handler:
         self.open_dir_button = gui_builder.get_object('open_image_folder')
         self.zoom_in_button = gui_builder.get_object('zoom_in')
         self.zoom_out_button = gui_builder.get_object('zoom_out')
+        self.zoom_slider = gui_builder.get_object('zoom_scale')
         self.gtk_point_type_list = gui_builder.get_object('point_type_list')
         self.gtk_point_summary_list = gui_builder.get_object('point_summary')
         self.point_type_button = gui_builder.get_object('select_point_type_box')
@@ -128,6 +128,8 @@ class Handler:
         self.point_list = []
         self.points_saved = True
         # init variables for zooming
+        self.slider_pressed = False
+        self.zoom_percent = 100
         self.scale = 1
         self.old_scale = 1
         self.image_width = 100
@@ -186,22 +188,37 @@ class Handler:
             self.overlay.reorder_overlay(original.image, 1)
             self.overlay.reorder_overlay(bw.image, 0)
 
-    def zoom_pressed(self, button):
-        self.old_scale = self.scale
-        value = 0.5
-        if button.get_label() == 'Zoom too normal':
-            self.scale = 1
-            self.zoom()
-            return
-        elif button.get_label() == 'Zoom out':
-            value = -value
-        if value < 0 and self.scale < 1:
-            pass
-        else:
-            self.scale = self.scale + value
+    def zoom_slide(self, slider, scroll, value):
+        self.zoom_percent = round(value)
+        if not self.slider_pressed:
+            self.scale = self.zoom_percent / 100
             self.zoom()
 
+    def zoom_slide_pressed(self, scale, event):
+        self.slider_pressed = True
+
+    def zoom_slide_release(self, scale=None, event=None):
+        self.slider_pressed = False
+        if self.zoom_percent > 250:
+            self.zoom_percent = 250
+        elif self.zoom_percent < 10:
+            self.zoom_percent = 10
+        self.scale = self.zoom_percent / 100
+        self.zoom()
+
+    def zoom_pressed(self, button):
+        self.old_scale = self.scale
+        if button.get_label() == 'Zoom too normal':
+            self.zoom_percent = 100
+        elif button.get_label() == 'Zoom in':
+            self.zoom_percent = self.zoom_percent + 10
+        elif button.get_label() == 'Zoom out':
+            self.zoom_percent = self.zoom_percent - 10
+        self.scale = self.zoom_percent / 100
+        self.zoom_slide_release()
+
     def zoom(self):
+        self.zoom_slider.set_value(self.zoom_percent)
         self.progress_bar.set_text(None)
         task = self.zoom_with_progress()
         GObject.idle_add(task.__next__)
@@ -223,7 +240,6 @@ class Handler:
             progress = progress + 0.25
             self.progress_bar.set_fraction(progress)
             yield True
-        self.label_zoom_level.set_markup(str(self.scale))
         self.redraw_points()
         self.progress_bar.set_text('Done!')
         yield False
@@ -653,6 +669,7 @@ class Handler:
         new_bw = self.buf_and_image(new_bw_buf, bw.image)
         self.buffers_and_images['bw'] = new_bw
         self.scale = 1
+        self.zoom_percent = 100
         self.image_width = new_original.buf.get_width()
         self.image_height = new_original.buf.get_height()
         for pt in self.gtk_point_type_list:
