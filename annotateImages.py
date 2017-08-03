@@ -112,6 +112,7 @@ class Handler:
         self.point_type = 'None'
         self.current_image = 'None'
         self.list_of_images = []
+        self.tree_image_index = {}
         self.image_folder = None
         self.current_point_file = None
         self.gtk_point_type_list.append(['#FF0000', 'None'])
@@ -388,7 +389,9 @@ class Handler:
             self.draw_buf_temp = self.draw_temp.image.get_pixbuf()
         if event.type == Gdk.EventType.BUTTON_RELEASE:
             self.do_drag = False
-            if self.pressed_x == event.x and self.pressed_y == event.y:
+            sensitivity = 5
+            if abs(self.pressed_x - event.x) < sensitivity and \
+               abs(self.pressed_y - event.y) < sensitivity:
                 return True
         return False
 
@@ -442,6 +445,8 @@ class Handler:
     def update_summary(self):
         self.gtk_point_summary_list.clear()
         old_image = ''
+        idx = 0
+        self.tree_image_index = {}
         dict_sort = sorted(self.point_summary_dict.items(), key=lambda x: x[0])
         for key, summary in dict_sort:
             full_image, point_type = key.split('--')
@@ -460,11 +465,14 @@ class Handler:
                                                     image_font,
                                                     self.background_color])
                 old_image = image
+                self.tree_image_index.update({idx: full_image})
+                idx = idx + 1
             self.gtk_point_summary_list.append([point_type,
                                                 str(summary.amount),
                                                 str(int(summary.size)),
                                                 point_font,
                                                 summary.color])
+            idx = idx + 1
 
     def draw_line_marking_live(self, point_start, point_stop):
         width = self.draw_buf_temp.get_width()
@@ -548,6 +556,11 @@ class Handler:
                 draw_points.append(new_point)
         self.draw_markings(draw_points)
         self.point_list = scaled_points
+
+    def open_image_from_tree(self, tree, path, col):
+        idx = Gtk.TreePath.get_indices(path)[0]
+        if idx in self.tree_image_index:
+            self.open_image(self.tree_image_index.get(idx))
 
     def open_next_image(self, button=None):
         if not self.list_of_images:
