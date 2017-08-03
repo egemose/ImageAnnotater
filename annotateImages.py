@@ -92,6 +92,9 @@ class Handler:
         self.last_entry_label = gui_builder.get_object('last_entry')
         self.next_image_button = gui_builder.get_object('open_next_image')
         self.next_image_button.set_sensitive(False)
+        self.previous_image_button = gui_builder.get_object(
+            'open_previous_image')
+        self.previous_image_button.set_sensitive(False)
         # setup the status bar
         self.status_bar = gui_builder.get_object('status_bar')
         self.status_msg = self.status_bar.get_context_id('Message')
@@ -249,8 +252,10 @@ class Handler:
                 self.save_points_shortcut()
             elif key_name == 'o':
                 self.file_dialog(self.open_image_button)
+            elif key_name == 'b':
+                self.open_next_image(self.previous_image_button)
             elif key_name == 'n':
-                self.open_next_image()
+                self.open_next_image(self.next_image_button)
             elif key_name == 'l':
                 self.file_dialog(self.load_point_type_button)
             elif key_name == 'p':
@@ -562,19 +567,24 @@ class Handler:
         if idx in self.tree_image_index:
             self.open_image(self.tree_image_index.get(idx))
 
-    def open_next_image(self, button=None):
+    def open_next_image(self, button):
+        shift = 1
+        if button.get_label() == 'Open previous image':
+            shift = -1
         if not self.list_of_images:
             self.get_list_of_images()
         try:
-            idx = self.list_of_images.index(self.current_image) + 1
+            idx = self.list_of_images.index(self.current_image) + shift
         except ValueError:
             idx = 0
-        if idx < len(self.list_of_images):
+        if 0 <= idx < len(self.list_of_images):
             new_image = self.list_of_images[idx]
             self.open_image(new_image)
         if idx + 1 == len(self.list_of_images):
             self.next_image_button.set_sensitive(False)
-        else:
+        elif idx == 0:
+            self.previous_image_button.set_sensitive(False)
+        elif idx + 1 > len(self.list_of_images) or idx < 0:
             status_string = 'No more images in folder'
             self.status_bar.push(self.status_msg, status_string)
 
@@ -619,7 +629,7 @@ class Handler:
 
     def open_image_folder(self, filename):
         self.image_folder = filename
-        self.open_next_image()
+        self.open_next_image(self.next_image_button)
 
     def open_image(self, filename):
         self.current_image = filename
@@ -627,6 +637,7 @@ class Handler:
         status_string = 'Image and computer annotated image opened.'
         self.status_bar.push(self.status_msg, status_string)
         self.next_image_button.set_sensitive(True)
+        self.previous_image_button.set_sensitive(True)
         self.switch_image_button.set_sensitive(True)
         self.show_missing_image_warning = True
         original = self.buffers_and_images.get('original')

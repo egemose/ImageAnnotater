@@ -81,6 +81,21 @@
                   </packing>
                 </child>
                 <child>
+                  <object class="GtkToolButton" id="open_previous_image">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="tooltip_text" translatable="yes">Open previous image</property>
+                    <property name="label" translatable="yes">Open previous image</property>
+                    <property name="use_underline">True</property>
+                    <property name="stock_id">gtk-media-previous</property>
+                    <signal name="clicked" handler="open_next_image" swapped="no"/>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="homogeneous">False</property>
+                  </packing>
+                </child>
+                <child>
                   <object class="GtkToolButton" id="open_next_image">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
