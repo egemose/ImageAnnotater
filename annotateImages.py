@@ -360,11 +360,17 @@ class Handler:
 
     def zoom_mouse_wheel(self, event_box, event):
         if event.state & Gdk.ModifierType.CONTROL_MASK:
+            x = event.x / self.zoom_percent
+            y = event.y / self.zoom_percent
             if event.direction == Gdk.ScrollDirection.DOWN:
                 self.zoom_percent = self.zoom_percent - 10
             elif event.direction == Gdk.ScrollDirection.UP:
                 self.zoom_percent = self.zoom_percent + 10
-            self.zoom_slide_release()
+            self.check_zoom_range()
+            self.pressed_x = x * self.zoom_percent
+            self.pressed_y = y * self.zoom_percent
+            self.zoom()
+            self.scroll(event)
             return True
         else:
             return False
