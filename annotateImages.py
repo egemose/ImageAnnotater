@@ -340,9 +340,6 @@ class Handler:
 
     def zoom_slide(self, slider, scroll, value):
         self.zoom_percent = round(value)
-        self.check_zoom_range()
-        if not self.slider_pressed:
-            self.zoom()
 
     def check_zoom_range(self):
         if self.zoom_percent > 250:
@@ -376,16 +373,17 @@ class Handler:
             return False
 
     def zoom_pressed(self, button):
-        self.old_scale = self.scale
         if button.get_label() == 'Zoom too normal':
             self.zoom_percent = 100
         elif button.get_label() == 'Zoom in':
             self.zoom_percent = self.zoom_percent + 10
         elif button.get_label() == 'Zoom out':
             self.zoom_percent = self.zoom_percent - 10
-        self.zoom_slide_release()
+        self.check_zoom_range()
+        self.zoom()
 
     def zoom(self):
+        self.old_scale = self.scale
         self.scale = self.zoom_percent / 100
         self.zoom_slider.set_value(self.zoom_percent)
         self.progress_bar.set_text(None)
@@ -412,6 +410,16 @@ class Handler:
         self.redraw_points()
         self.progress_bar.set_text('Done!')
         yield False
+
+    def scroll(self, event):
+        scroll_x = self.h_adjust.get_value()
+        scroll_y = self.v_adjust.get_value()
+        change_x = self.pressed_x - event.x
+        change_y = self.pressed_y - event.y
+        new_scroll_x = scroll_x + change_x
+        self.h_adjust.set_value(new_scroll_x)
+        new_scroll_y = scroll_y + change_y
+        self.v_adjust.set_value(new_scroll_y)
 
     def warn_annotated_image(self):
         if self.show_missing_image_warning:
@@ -469,16 +477,6 @@ class Handler:
             self.make_line_marking(event)
         if self.do_scroll:
             self.scroll(event)
-
-    def scroll(self, event):
-        scroll_x = self.h_adjust.get_value()
-        scroll_y = self.v_adjust.get_value()
-        change_x = self.pressed_x - event.x
-        change_y = self.pressed_y - event.y
-        new_scroll_x = scroll_x + change_x
-        self.h_adjust.set_value(new_scroll_x)
-        new_scroll_y = scroll_y + change_y
-        self.v_adjust.set_value(new_scroll_y)
 
     def make_point(self, x, y, dist=None, angle=None):
         point = self.point(self.current_image,
