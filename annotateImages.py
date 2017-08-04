@@ -342,7 +342,6 @@ class Handler:
         self.zoom_percent = round(value)
         self.check_zoom_range()
         if not self.slider_pressed:
-            self.scale = self.zoom_percent / 100
             self.zoom()
 
     def check_zoom_range(self):
@@ -357,7 +356,6 @@ class Handler:
     def zoom_slide_release(self, scale=None, event=None):
         self.slider_pressed = False
         self.check_zoom_range()
-        self.scale = self.zoom_percent / 100
         self.zoom()
 
     def zoom_mouse_wheel(self, event_box, event):
@@ -382,6 +380,7 @@ class Handler:
         self.zoom_slide_release()
 
     def zoom(self):
+        self.scale = self.zoom_percent / 100
         self.zoom_slider.set_value(self.zoom_percent)
         self.progress_bar.set_text(None)
         task = self.zoom_with_progress()
@@ -808,7 +807,6 @@ class Handler:
         new_bw_buf = bw.image.get_pixbuf()
         new_bw = self.buf_and_image(new_bw_buf, bw.image)
         self.buffers_and_images['bw'] = new_bw
-        self.scale = 1
         self.zoom_percent = 100
         self.image_width = new_original.buf.get_width()
         self.image_height = new_original.buf.get_height()
