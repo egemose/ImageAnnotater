@@ -853,7 +853,8 @@ class Handler:
                                  p.r, p.g, p.b, p.a])
 
     def load_points(self, filename):
-        status_string = 'Point types loaded.'
+        self.current_point_file = filename
+        status_string = 'Point loaded.'
         self.status_bar.push(self.status_msg, status_string)
         self.point_list = []
         self.gtk_point_summary_list.clear()
@@ -947,8 +948,12 @@ class Handler:
                 self.load_point_types(dialog.get_filename())
         elif button.get_label() == 'Save points':
             dialog.set_do_overwrite_confirmation(True)
-            if self.image_folder is not None:
-                dialog.set_current_folder(self.image_folder)
+            dialog.set_current_name('untitled.csv')
+            if self.current_point_file is None:
+                if self.image_folder is not None:
+                    dialog.set_current_folder(self.image_folder)
+            else:
+                dialog.set_filename(self.current_point_file)
             self.add_text_filters(dialog)
             response = dialog.run()
             if response == Gtk.ResponseType.OK:
