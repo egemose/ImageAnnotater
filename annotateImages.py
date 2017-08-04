@@ -6,7 +6,7 @@ from math import sqrt, pi, atan2, cos, sin
 import cairo
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, Gdk, GdkPixbuf, GObject
+from gi.repository import Gtk, Gdk, Gio, GdkPixbuf, GObject
 
 
 def cl_arg():
@@ -37,6 +37,155 @@ def main(handler):
         handler.load_point_types(args.types)
     if args.points:
         handler.load_points(args.points)
+
+
+class App(Gtk.Application):
+    def __init__(self):
+        super().__init__(application_id='org.annotate.images',
+                         flags=Gio.ApplicationFlags.FLAGS_NONE)
+        self.window = None
+        self.handler = None
+
+    def do_startup(self):
+        Gtk.Application.do_startup(self)
+
+        self.make_action('preferences', self.on_preferences)
+        self.make_action('open_image_folder', self.on_open_image_folder)
+        self.make_action('open_image', self.on_open_image)
+        self.make_action('open_markings', self.on_open_markings)
+        self.make_action('open_markings_types', self.on_open_marking_types)
+        self.make_action('save_markings', self.on_save_markings)
+        self.make_action('save_as_markings', self.on_save_as_markings)
+        self.make_action('quit', self.on_quit)
+
+        self.make_action('previous_image', self.on_previous_image)
+        self.make_action('next_image', self.on_next_image)
+        self.make_action('switch_image', self.on_switch_image)
+        self.make_action('zoom_out', self.on_zoom_out)
+        self.make_action('zoom_in', self.on_zoom_in)
+        self.make_action('zoom_normal', self.on_zoom_normal)
+
+        self.make_action('shortcuts', self.on_shortcuts)
+        self.make_action('about', self.on_about)
+
+    def do_activate(self):
+        menu_builder = Gtk.Builder()
+        menu_builder.add_from_file('data/menu.glade')
+        menu_bar = menu_builder.get_object('menu_bar')
+        self.set_menubar(menu_bar)
+        win_builder = Gtk.Builder()
+        win_builder.add_from_file('data/GUI.glade')
+        self.handler = Handler(win_builder)
+        win_builder.connect_signals(self.handler)
+        self.window = win_builder.get_object('main_window')
+        self.window.set_title('Image Annotating')
+        self.window.set_application(self)
+        self.window.show_all()
+        main(self.handler)
+
+    def make_action(self, name, func):
+        action = Gio.SimpleAction.new(name, None)
+        action.connect('activate', func)
+        self.add_action(action)
+
+    def on_about(self, action, param):
+        about_dialog = AboutDialog(self.window)
+        response = about_dialog.run()
+        if response:
+            about_dialog.destroy()
+
+    def on_quit(self, action, param):
+        self.quit()
+
+    def on_open_image_folder(self, action, param):
+        self.handler.file_dialog(self.handler.open_dir_button)
+
+    def on_open_image(self, action, param):
+        self.handler.file_dialog(self.handler.open_image_button)
+
+    def on_open_markings(self, action, param):
+        self.handler.file_dialog(self.handler.load_points_button)
+
+    def on_open_marking_types(self, action, param):
+        self.handler.file_dialog(self.handler.load_point_type_button)
+
+    def on_save_markings(self, action, param):
+        self.handler.save_points_shortcut()
+
+    def on_save_as_markings(self, action, param):
+        self.handler.file_dialog(self.handler.save_points_button)
+
+    def on_previous_image(self, action, param):
+        self.handler.open_next_image(self.handler.previous_image_button)
+
+    def on_next_image(self, action, param):
+        self.handler.open_next_image(self.handler.next_image_button)
+
+    def on_switch_image(self, action, param):
+        self.handler.switch_image_shortcut()
+
+    def on_zoom_out(self, action, param):
+        self.handler.zoom_pressed(self.handler.zoom_out_button)
+
+    def on_zoom_in(self, action, param):
+        self.handler.zoom_pressed(self.handler.zoom_in_button)
+
+    def on_zoom_normal(self, action, param):
+        self.handler.zoom_pressed(self.handler.zoom_normal)
+
+    def on_shortcuts(self, action, param):
+        shortcut_dialog = ShortcutDialog(self.window)
+        response = shortcut_dialog.run()
+        if response:
+            shortcut_dialog.destroy()
+
+    def on_preferences(self, action, pram):
+        preferences_dialog = PreferencesDialog(self.window)
+        response = preferences_dialog.run()
+        if response:
+            preferences_dialog.destroy()
+
+
+class PreferencesDialog(Gtk.Dialog):
+    def __init__(self, parent):
+        header = 'Preferences'
+        response = (Gtk.STOCK_OK, Gtk.ResponseType.OK)
+        Gtk.Dialog.__init__(self, header, parent, 0, response)
+        self.set_default_size(150, 100)
+        label = Gtk.Label('Coming soon')
+        label2 = Gtk.Label('')
+        box = self.get_content_area()
+        box.add(label)
+        box.add(label2)
+        self.show_all()
+
+
+class ShortcutDialog(Gtk.Dialog):
+    def __init__(self, parent):
+        header = 'Shortcuts'
+        response = (Gtk.STOCK_OK, Gtk.ResponseType.OK)
+        Gtk.Dialog.__init__(self, header, parent, 0, response)
+        self.set_default_size(150, 100)
+        label = Gtk.Label('Shortcuts:')
+        label2 = Gtk.Label('')
+        box = self.get_content_area()
+        box.add(label)
+        box.add(label2)
+        self.show_all()
+
+
+class AboutDialog(Gtk.Dialog):
+    def __init__(self, parent):
+        header = 'About'
+        response = (Gtk.STOCK_OK, Gtk.ResponseType.OK)
+        Gtk.Dialog.__init__(self, header, parent, 0, response)
+        self.set_default_size(150, 100)
+        label = Gtk.Label('Image annotation program')
+        label2 = Gtk.Label('Used to make markings on images.')
+        box = self.get_content_area()
+        box.add(label)
+        box.add(label2)
+        self.show_all()
 
 
 class PointsNotSavedDialog(Gtk.Dialog):
@@ -82,6 +231,7 @@ class Handler:
         self.open_dir_button = gui_builder.get_object('open_image_folder')
         self.zoom_in_button = gui_builder.get_object('zoom_in')
         self.zoom_out_button = gui_builder.get_object('zoom_out')
+        self.zoom_normal = gui_builder.get_object('zoom_too_normal')
         self.zoom_slider = gui_builder.get_object('zoom_scale')
         self.gtk_point_type_list = gui_builder.get_object('point_type_list')
         self.gtk_point_summary_list = gui_builder.get_object('point_summary')
@@ -152,7 +302,7 @@ class Handler:
     def delete_window(self, *args):
         if self.warning_dialog_response():
             return True
-        Gtk.main_quit(*args)
+        self.main_window.destroy()
 
     def warning_dialog_response(self):
         if not self.points_saved:
@@ -263,31 +413,7 @@ class Handler:
 
     def handle_shortcuts(self, event_box, event):
         key_name = Gdk.keyval_name(event.keyval)
-        if event.state & Gdk.ModifierType.CONTROL_MASK:
-            if key_name == 's':
-                self.save_points_shortcut()
-            elif key_name == 'o':
-                self.file_dialog(self.open_image_button)
-            elif key_name == 'b':
-                self.open_next_image(self.previous_image_button)
-            elif key_name == 'n':
-                self.open_next_image(self.next_image_button)
-            elif key_name == 'l':
-                self.file_dialog(self.load_point_type_button)
-            elif key_name == 'p':
-                self.file_dialog(self.load_points_button)
-            elif key_name == 'q':
-                self.delete_window()
-            elif key_name == 'd':
-                self.file_dialog(self.open_dir_button)
-            elif key_name == 'less':
-                self.switch_image_shortcut()
-            elif key_name == 'comma':
-                self.zoom_pressed(self.zoom_out_button)
-            elif key_name == 'period':
-                self.zoom_pressed(self.zoom_in_button)
-        else:
-            self.switch_point_type(key_name)
+        self.switch_point_type(key_name)
 
     def save_points_shortcut(self):
         if self.current_point_file is None:
@@ -840,11 +966,5 @@ class Handler:
 
 
 if __name__ == '__main__':
-    builder = Gtk.Builder()
-    builder.add_from_file('data/GUI.glade')
-    signal_handler = Handler(builder)
-    builder.connect_signals(signal_handler)
-    window = builder.get_object('main_window')
-    window.show_all()
-    main(signal_handler)
-    Gtk.main()
+    app = App()
+    app.run()
