@@ -340,19 +340,23 @@ class Handler:
 
     def zoom_slide(self, slider, scroll, value):
         self.zoom_percent = round(value)
+        self.check_zoom_range()
         if not self.slider_pressed:
             self.scale = self.zoom_percent / 100
             self.zoom()
+
+    def check_zoom_range(self):
+        if self.zoom_percent > 250:
+            self.zoom_percent = 250
+        elif self.zoom_percent < 10:
+            self.zoom_percent = 10
 
     def zoom_slide_pressed(self, scale, event):
         self.slider_pressed = True
 
     def zoom_slide_release(self, scale=None, event=None):
         self.slider_pressed = False
-        if self.zoom_percent > 250:
-            self.zoom_percent = 250
-        elif self.zoom_percent < 10:
-            self.zoom_percent = 10
+        self.check_zoom_range()
         self.scale = self.zoom_percent / 100
         self.zoom()
 
@@ -362,7 +366,6 @@ class Handler:
                 self.zoom_percent = self.zoom_percent - 10
             elif event.direction == Gdk.ScrollDirection.UP:
                 self.zoom_percent = self.zoom_percent + 10
-            self.scale = self.zoom_percent / 100
             self.zoom_slide_release()
             return True
         else:
@@ -376,7 +379,6 @@ class Handler:
             self.zoom_percent = self.zoom_percent + 10
         elif button.get_label() == 'Zoom out':
             self.zoom_percent = self.zoom_percent - 10
-        self.scale = self.zoom_percent / 100
         self.zoom_slide_release()
 
     def zoom(self):
