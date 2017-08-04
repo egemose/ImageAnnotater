@@ -356,6 +356,18 @@ class Handler:
         self.scale = self.zoom_percent / 100
         self.zoom()
 
+    def zoom_mouse_wheel(self, event_box, event):
+        if event.state & Gdk.ModifierType.CONTROL_MASK:
+            if event.direction == Gdk.ScrollDirection.DOWN:
+                self.zoom_percent = self.zoom_percent - 10
+            elif event.direction == Gdk.ScrollDirection.UP:
+                self.zoom_percent = self.zoom_percent + 10
+            self.scale = self.zoom_percent / 100
+            self.zoom_slide_release()
+            return True
+        else:
+            return False
+
     def zoom_pressed(self, button):
         self.old_scale = self.scale
         if button.get_label() == 'Zoom too normal':
