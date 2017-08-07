@@ -280,8 +280,6 @@ class Handler:
         # init variables for zooming
         self.slider_pressed = False
         self.zoom_percent = 100
-        self.scale = 1
-        self.old_scale = 1
         self.image_width = 100
         self.image_height = 100
 
@@ -383,8 +381,6 @@ class Handler:
         self.zoom()
 
     def zoom(self):
-        self.old_scale = self.scale
-        self.scale = self.zoom_percent / 100
         self.zoom_slider.set_value(self.zoom_percent)
         self.progress_bar.set_text(None)
         task = self.zoom_with_progress()
@@ -394,8 +390,8 @@ class Handler:
         progress = 0
         self.progress_bar.set_fraction(0.0)
         yield True
-        width = self.image_width * self.scale
-        height = self.image_height * self.scale
+        width = self.image_width * (self.zoom_percent / 100)
+        height = self.image_height * (self.zoom_percent / 100)
         for bi in self.buffers_and_images.values():
             try:
                 buf_temp = bi.buf.scale_simple(width,
@@ -464,8 +460,8 @@ class Handler:
             pass
 
     def clean_draw_image(self):
-        width = self.image_width * self.scale
-        height = self.image_height * self.scale
+        width = self.image_width * (self.zoom_percent / 100)
+        height = self.image_height * (self.zoom_percent / 100)
         draw = self.buffers_and_images.get('draw')
         buf_temp = draw.buf.scale_simple(width,
                                          height,
@@ -518,13 +514,16 @@ class Handler:
             self.do_scroll = False
 
     def find_closest_point(self, point):
+        scaled_x = point.x / (self.zoom_percent / 100)
+        scaled_y = point.y / (self.zoom_percent / 100)
         dist_keep = 1000000
         p_keep = None
         for p in self.point_list:
-            dist = sqrt((p.x - point.x) ** 2 + (p.y - point.y) ** 2)
+            dist = sqrt((p.x - scaled_x) ** 2 + (p.y - scaled_y) ** 2)
             if dist < dist_keep:
                 dist_keep = dist
                 p_keep = p
+        dist_keep = dist_keep * (self.zoom_percent / 100)
         return dist_keep, p_keep
 
     def remove_marking(self, event):
@@ -540,7 +539,8 @@ class Handler:
                 key = self.current_image + '--' + point.type
                 summary = self.point_summary_dict.get(key)
                 new_summary = self.summary_values(summary.amount - 1,
-                                                  summary.size, summary.color)
+                                                  summary.size - point.size,
+                                                  summary.color)
                 self.point_summary_dict[key] = new_summary
                 self.update_summary()
 
@@ -569,11 +569,11 @@ class Handler:
         self.points_saved = False
         diff_x = event.x - self.pressed_x
         diff_y = event.y - self.pressed_y
-        dist = sqrt(diff_x ** 2 + diff_y ** 2)
+        dist = sqrt(diff_x ** 2 + diff_y ** 2) / (self.zoom_percent / 100)
         angle = atan2(-diff_y, diff_x)
         display_angle = angle / pi * 180
-        point = self.make_point(self.pressed_x,
-                                self.pressed_y,
+        point = self.make_point(self.pressed_x / (self.zoom_percent / 100),
+                                self.pressed_y / (self.zoom_percent / 100),
                                 dist,
                                 angle)
         self.point_list.append(point)
@@ -592,12 +592,14 @@ class Handler:
         dist, _ = self.find_closest_point(event)
         if dist > 2 * self.radius:
             self.points_saved = False
-            point = self.make_point(event.x, event.y)
+            point = self.make_point(event.x / (self.zoom_percent / 100),
+                                    event.y / (self.zoom_percent / 100))
+            point2 = self.make_point(event.x, event.y)
             self.point_list.append(point)
-            self.draw_markings([point])
+            self.draw_markings([point2])
             label_text = '%s (%i, %i)' % (self.point_type,
-                                          int(event.x),
-                                          int(event.y))
+                                          int(point.x),
+                                          int(point.y))
             self.last_entry_label.set_text(label_text)
             key = self.current_image + '--' + self.point_type
             summary = self.point_summary_dict.get(key)
@@ -699,27 +701,20 @@ class Handler:
         draw_buf = Gdk.pixbuf_get_from_surface(surface, 0, 0, width, height)
         draw.image.set_from_pixbuf(draw_buf)
 
-    def redraw_points(self, old_scale=True):
-        if old_scale:
-            scale_factor = self.scale / self.old_scale
-        else:
-            scale_factor = self.scale
-        scaled_points = []
+    def redraw_points(self):
         draw_points = []
         for p in self.point_list:
-            x = p.x * scale_factor
-            y = p.y * scale_factor
+            x = p.x * (self.zoom_percent / 100)
+            y = p.y * (self.zoom_percent / 100)
             if p.size is None:
                 dist = None
             else:
-                dist = p.size * scale_factor
+                dist = p.size * (self.zoom_percent / 100)
             new_point = self.point(p.image, p.type, x, y, dist, p.angle,
                                    p.r, p.g, p.b, p.a)
-            scaled_points.append(new_point)
             if p.image == self.current_image:
                 draw_points.append(new_point)
         self.draw_markings(draw_points)
-        self.point_list = scaled_points
 
     def open_image_from_tree(self, tree, path, col):
         idx = Gtk.TreePath.get_indices(path)[0]
@@ -859,13 +854,7 @@ class Handler:
             writer = csv.writer(csv_file)
             writer.writerow(header)
             for p in self.point_list:
-                x = p.x / self.scale
-                y = p.y / self.scale
-                if p.size is None:
-                    dist = None
-                else:
-                    dist = p.size / self.scale
-                writer.writerow([p.image, p.type, x, y, dist, p.angle,
+                writer.writerow([p.image, p.type, p.x, p.y, p.size, p.angle,
                                  p.r, p.g, p.b, p.a])
 
     def load_points(self, filename):
@@ -897,7 +886,7 @@ class Handler:
         self.make_summary_dict()
         self.update_summary()
         self.points_saved = True
-        self.redraw_points(old_scale=False)
+        self.redraw_points()
 
     def make_summary_dict(self):
         self.point_summary_dict.clear()
