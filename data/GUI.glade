@@ -369,6 +369,7 @@
                 <property name="shadow_type">in</property>
                 <property name="min_content_width">1000</property>
                 <property name="min_content_height">700</property>
+                <signal name="size-allocate" handler="resize" swapped="no"/>
                 <child>
                   <object class="GtkLayout" id="layout">
                     <property name="visible">True</property>

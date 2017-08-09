@@ -224,6 +224,10 @@ class Handler:
         self.v_adjust = self.scroll_window.get_vadjustment()
         self.h_adjust = self.scroll_window.get_hadjustment()
         self.layout = gui_builder.get_object('layout')
+        self.draw_image = gui_builder.get_object('draw_image')
+        self.draw_image_and_buf = self. buf_and_image(
+            self.draw_image.get_pixbuf(),
+            self.draw_image)
         self.save_points_button = gui_builder.get_object('save_points')
         self.open_image_button = gui_builder.get_object('open_image')
         self.load_point_type_button = gui_builder.get_object('load_point_type')
@@ -254,6 +258,8 @@ class Handler:
         self.radius = 10
         self.buffers_and_images = {}
         self.init_draw_area(gui_builder)
+        self.window_height = 0
+        self.window_width = 0
         self.do_scroll = False
         self.do_drag = False
         self.pressed_x = None
@@ -288,8 +294,7 @@ class Handler:
 
     def init_draw_area(self, gui_builder):
         images = ['original_image',
-                  'bw_image',
-                  'draw_image']
+                  'bw_image']
         for im in images:
             image = gui_builder.get_object(im)
             buf = image.get_pixbuf()
@@ -403,10 +408,41 @@ class Handler:
             progress = progress + 0.33
             self.progress_bar.set_fraction(progress)
             yield True
-        self.redraw_points()
+        self.resize_draw_image()
+        self.draw_markings()
         self.progress_bar.set_fraction(1)
         self.progress_bar.set_text('Done!')
         yield False
+
+    def resize(self, widget, event):
+        if event.width != self.window_width \
+                or event.height != self.window_height:
+            self.resize_draw_image()
+            self.draw_markings()
+            self.window_height = event.height
+            self.window_width = event.width
+
+    def resize_draw_image(self):
+        width = self.h_adjust.get_page_size()
+        height = self.v_adjust.get_page_size()
+        draw = self.draw_image_and_buf
+        buf_temp = draw.buf.scale_simple(width,
+                                         height,
+                                         GdkPixbuf.InterpType.BILINEAR)
+        draw.image.set_from_pixbuf(buf_temp)
+        self.draw_image_and_buf = self.buf_and_image(buf_temp, draw.image)
+
+    def move_draw_image(self):
+        x = self.h_adjust.get_value()
+        y = self.v_adjust.get_value()
+        self.layout.move(self.draw_image, x, y)
+
+        # one way
+    def move_draw_image2(self, event):
+        print(event.delta_y)
+        x = self.h_adjust.get_value()
+        y = self.v_adjust.get_value() + event.delta_y * 78
+        self.layout.move(self.draw_image, x, y)
 
     def scroll(self, event):
         scroll_x = self.h_adjust.get_value()
@@ -463,7 +499,7 @@ class Handler:
     def clean_draw_image(self):
         width = self.image_width * (self.zoom_percent / 100)
         height = self.image_height * (self.zoom_percent / 100)
-        draw = self.buffers_and_images.get('draw')
+        draw = self.draw_image_and_buf
         buf_temp = draw.buf.scale_simple(width,
                                          height,
                                          GdkPixbuf.InterpType.BILINEAR)
@@ -511,8 +547,11 @@ class Handler:
             self.do_scroll = True
             self.pressed_x = event.x
             self.pressed_y = event.y
+            self.clean_draw_image()
         elif event.type == Gdk.EventType.BUTTON_RELEASE:
             self.do_scroll = False
+            self.move_draw_image()
+            self.draw_markings()
 
     def find_closest_point(self, point):
         scaled_x = point.x / (self.zoom_percent / 100)
@@ -534,7 +573,7 @@ class Handler:
                 self.points_saved = False
                 self.point_list.remove(point)
                 self.clean_draw_image()
-                self.draw_markings(self.point_list)
+                self.draw_markings()
                 label_text = 'removed: (%i, %i)' % (int(event.x), int(event.y))
                 self.last_entry_label.set_text(label_text)
                 key = self.current_image + '--' + point.type
@@ -550,9 +589,10 @@ class Handler:
             self.do_drag = do_drag
             self.pressed_x = event.x
             self.pressed_y = event.y
-            self.draw_temp = self.buffers_and_images.get('draw')
+            self.draw_temp = self.draw_image_and_buf
             self.draw_buf_temp = self.draw_temp.image.get_pixbuf()
         if event.type == Gdk.EventType.BUTTON_RELEASE:
+            self.draw_markings()
             self.do_drag = False
             sensitivity = 5
             if abs(self.pressed_x - event.x) < sensitivity and \
@@ -578,6 +618,7 @@ class Handler:
                                 dist,
                                 angle)
         self.point_list.append(point)
+        self.draw_markings()
         label_text = '%s %i px, %i degrees' % (self.point_type,
                                                int(dist),
                                                int(display_angle))
@@ -595,9 +636,8 @@ class Handler:
             self.points_saved = False
             point = self.make_point(event.x / (self.zoom_percent / 100),
                                     event.y / (self.zoom_percent / 100))
-            point2 = self.make_point(event.x, event.y)
             self.point_list.append(point)
-            self.draw_markings([point2])
+            self.draw_markings()
             label_text = '%s (%i, %i)' % (self.point_type,
                                           int(point.x),
                                           int(point.y))
@@ -642,6 +682,8 @@ class Handler:
             idx = idx + 1
 
     def draw_line_marking_live(self, point_start, point_stop):
+        offset_x = self.h_adjust.get_value()
+        offset_y = self.v_adjust.get_value()
         width = self.draw_buf_temp.get_width()
         height = self.draw_buf_temp.get_height()
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
@@ -652,13 +694,13 @@ class Handler:
                            point_start.g,
                            point_start.b,
                            point_start.a)
-        x = int(point_start.x)
-        y = int(point_start.y)
+        x = int(point_start.x - offset_x)
+        y = int(point_start.y - offset_y)
         cr.arc(x, y, self.radius, 0, 2 * pi)
         cr.fill()
         cr.move_to(x, y)
-        x = int(point_stop.x)
-        y = int(point_stop.y)
+        x = int(point_stop.x - offset_x)
+        y = int(point_stop.y - offset_y)
         cr.line_to(x, y)
         cr.set_line_width(3)
         cr.stroke()
@@ -668,31 +710,32 @@ class Handler:
         draw_buf = Gdk.pixbuf_get_from_surface(surface, 0, 0, width, height)
         self.draw_temp.image.set_from_pixbuf(draw_buf)
 
-    def draw_markings(self, points):
-        draw = self.buffers_and_images.get('draw')
-        draw_buf = draw.image.get_pixbuf()
+    def draw_markings(self):
+        offset_x = self.h_adjust.get_value()
+        offset_y = self.v_adjust.get_value()
+        draw = self.draw_image_and_buf
+        draw_buf = draw.buf
         width = draw_buf.get_width()
         height = draw_buf.get_height()
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
         cr = cairo.Context(surface)
         Gdk.cairo_set_source_pixbuf(cr, draw_buf, 0, 0)
         cr.paint()
-        for point in points:
+        for point in self.point_list:
+            x = int(point.x * (self.zoom_percent / 100) - offset_x)
+            y = int(point.y * (self.zoom_percent / 100) - offset_y)
             if point.size is None:
-                x = int(point.x)
-                y = int(point.y)
                 cr.set_source_rgba(point.r, point.g, point.b, point.a)
                 cr.arc(x, y, self.radius, 0, 2 * pi)
                 cr.fill()
             else:
+                size = point.size * (self.zoom_percent / 100)
                 cr.set_source_rgba(point.r, point.g, point.b, point.a)
-                x = int(point.x)
-                y = int(point.y)
                 cr.arc(x, y, self.radius, 0, 2 * pi)
                 cr.fill()
                 cr.move_to(x, y)
-                x = int(x + point.size * cos(point.angle))
-                y = int(y - point.size * sin(point.angle))
+                x = int(x + size * cos(point.angle))
+                y = int(y - size * sin(point.angle))
                 cr.line_to(x, y)
                 cr.set_line_width(3)
                 cr.stroke()
@@ -701,21 +744,6 @@ class Handler:
         surface = cr.get_target()
         draw_buf = Gdk.pixbuf_get_from_surface(surface, 0, 0, width, height)
         draw.image.set_from_pixbuf(draw_buf)
-
-    def redraw_points(self):
-        draw_points = []
-        for p in self.point_list:
-            x = p.x * (self.zoom_percent / 100)
-            y = p.y * (self.zoom_percent / 100)
-            if p.size is None:
-                dist = None
-            else:
-                dist = p.size * (self.zoom_percent / 100)
-            new_point = self.point(p.image, p.type, x, y, dist, p.angle,
-                                   p.r, p.g, p.b, p.a)
-            if p.image == self.current_image:
-                draw_points.append(new_point)
-        self.draw_markings(draw_points)
 
     def open_image_from_tree(self, tree, path, col):
         idx = Gtk.TreePath.get_indices(path)[0]
@@ -887,7 +915,7 @@ class Handler:
         self.make_summary_dict()
         self.update_summary()
         self.points_saved = True
-        self.redraw_points()
+        self.draw_markings()
 
     def make_summary_dict(self):
         self.point_summary_dict.clear()
