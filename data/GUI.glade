@@ -370,6 +370,7 @@
                 <property name="min_content_width">1000</property>
                 <property name="min_content_height">700</property>
                 <signal name="size-allocate" handler="resize" swapped="no"/>
+                <signal name="scroll-event" handler="mouse_wheel" swapped="no"/>
                 <child>
                   <object class="GtkLayout" id="layout">
                     <property name="visible">True</property>
@@ -378,7 +379,6 @@
                     <signal name="button-press-event" handler="add_remove_point" swapped="no"/>
                     <signal name="button-release-event" handler="add_remove_point" swapped="no"/>
                     <signal name="motion-notify-event" handler="mouse_move" swapped="no"/>
-                    <signal name="scroll-event" handler="zoom_mouse_wheel" swapped="no"/>
                     <child>
                       <object class="GtkImage" id="bw_image">
                         <property name="visible">True</property>

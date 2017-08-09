@@ -372,8 +372,10 @@ class Handler:
             self.scroll(event)
             return True
         else:
-            #self.move_draw_image2(event)
-            #return False
+            y_updated = self.v_adjust.get_value() + event.delta_y * 77
+            self.v_adjust.set_value(y_updated)
+            self.move_draw_image()
+            self.draw_markings()
             return True
 
     def zoom_pressed(self, button):
@@ -437,13 +439,6 @@ class Handler:
     def move_draw_image(self):
         x = self.h_adjust.get_value()
         y = self.v_adjust.get_value()
-        self.layout.move(self.draw_image, x, y)
-
-        # one way
-    def move_draw_image2(self, event):
-        print(event.delta_y)
-        x = self.h_adjust.get_value()
-        y = self.v_adjust.get_value() + event.delta_y * 78
         self.layout.move(self.draw_image, x, y)
 
     def scroll(self, event):
