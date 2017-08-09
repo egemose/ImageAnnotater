@@ -357,19 +357,9 @@ class Handler:
         self.check_zoom_range()
         self.zoom()
 
-    def zoom_mouse_wheel(self, event_box, event):
+    def mouse_wheel(self, event_box, event):
         if event.state & Gdk.ModifierType.CONTROL_MASK:
-            x = event.x / self.zoom_percent
-            y = event.y / self.zoom_percent
-            if event.delta_y == 1:
-                self.zoom_percent = self.zoom_percent - 10
-            elif event.delta_y == -1:
-                self.zoom_percent = self.zoom_percent + 10
-            self.check_zoom_range()
-            self.pressed_x = x * self.zoom_percent
-            self.pressed_y = y * self.zoom_percent
-            self.zoom()
-            self.scroll(event)
+            self.zoom_mouse_wheel(event)
             return True
         else:
             y_updated = self.v_adjust.get_value() + event.delta_y * 77
@@ -377,6 +367,19 @@ class Handler:
             self.move_draw_image()
             self.draw_markings()
             return True
+
+    def zoom_mouse_wheel(self, event):
+        x = event.x / self.zoom_percent
+        y = event.y / self.zoom_percent
+        if event.delta_y == 1:
+            self.zoom_percent = self.zoom_percent - 10
+        elif event.delta_y == -1:
+            self.zoom_percent = self.zoom_percent + 10
+        self.check_zoom_range()
+        self.pressed_x = x * self.zoom_percent
+        self.pressed_y = y * self.zoom_percent
+        self.zoom()
+        self.scroll(event)
 
     def zoom_pressed(self, button):
         if button.get_label() == 'Zoom too normal':
@@ -409,12 +412,11 @@ class Handler:
                 bi.image.set_from_pixbuf(buf_temp)
             except AttributeError:
                 self.warn_annotated_image()
-            progress = progress + 0.33
+            progress = progress + 0.50
             self.progress_bar.set_fraction(progress)
             yield True
         self.resize_draw_image()
         self.draw_markings()
-        self.progress_bar.set_fraction(1)
         self.progress_bar.set_text('Done!')
         yield False
 
@@ -493,15 +495,6 @@ class Handler:
         except ValueError:
             pass
 
-    def clean_draw_image(self):
-        width = self.image_width * (self.zoom_percent / 100)
-        height = self.image_height * (self.zoom_percent / 100)
-        draw = self.draw_image_and_buf
-        buf_temp = draw.buf.scale_simple(width,
-                                         height,
-                                         GdkPixbuf.InterpType.BILINEAR)
-        draw.image.set_from_pixbuf(buf_temp)
-
     def mouse_move(self, event_box, event):
         if self.do_drag:
             self.make_line_marking(event)
@@ -538,17 +531,16 @@ class Handler:
             self.button_scroll(event)
         else:
             print(event.button)
+        self.draw_markings()
 
     def button_scroll(self, event):
         if event.type == Gdk.EventType.BUTTON_PRESS:
             self.do_scroll = True
             self.pressed_x = event.x
             self.pressed_y = event.y
-            self.clean_draw_image()
         elif event.type == Gdk.EventType.BUTTON_RELEASE:
             self.do_scroll = False
             self.move_draw_image()
-            self.draw_markings()
 
     def find_closest_point(self, point):
         scaled_x = point.x / (self.zoom_percent / 100)
@@ -569,8 +561,6 @@ class Handler:
             if dist < self.radius:
                 self.points_saved = False
                 self.point_list.remove(point)
-                self.clean_draw_image()
-                self.draw_markings()
                 label_text = 'removed: (%i, %i)' % (int(event.x), int(event.y))
                 self.last_entry_label.set_text(label_text)
                 key = self.current_image + '--' + point.type
@@ -589,7 +579,6 @@ class Handler:
             self.draw_temp = self.draw_image_and_buf
             self.draw_buf_temp = self.draw_temp.image.get_pixbuf()
         if event.type == Gdk.EventType.BUTTON_RELEASE:
-            self.draw_markings()
             self.do_drag = False
             sensitivity = 5
             if abs(self.pressed_x - event.x) < sensitivity and \
@@ -615,7 +604,6 @@ class Handler:
                                 dist,
                                 angle)
         self.point_list.append(point)
-        self.draw_markings()
         label_text = '%s %i px, %i degrees' % (self.point_type,
                                                int(dist),
                                                int(display_angle))
@@ -634,7 +622,6 @@ class Handler:
             point = self.make_point(event.x / (self.zoom_percent / 100),
                                     event.y / (self.zoom_percent / 100))
             self.point_list.append(point)
-            self.draw_markings()
             label_text = '%s (%i, %i)' % (self.point_type,
                                           int(point.x),
                                           int(point.y))
@@ -861,7 +848,7 @@ class Handler:
         self.point_type_button.set_active(0)
         self.point_list = []
         self.points_saved = True
-        self.clean_draw_image()
+        self.draw_markings()
 
     def update_point_types(self, row):
         self.gtk_point_type_list.append(row)
