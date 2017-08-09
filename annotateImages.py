@@ -372,7 +372,9 @@ class Handler:
             self.scroll(event)
             return True
         else:
-            return False
+            #self.move_draw_image2(event)
+            #return False
+            return True
 
     def zoom_pressed(self, button):
         if button.get_label() == 'Zoom too normal':
