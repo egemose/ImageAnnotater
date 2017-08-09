@@ -223,7 +223,7 @@ class Handler:
         self.scroll_window = gui_builder.get_object('scroll_window')
         self.v_adjust = self.scroll_window.get_vadjustment()
         self.h_adjust = self.scroll_window.get_hadjustment()
-        self.overlay = gui_builder.get_object('overlay')
+        self.layout = gui_builder.get_object('layout')
         self.save_points_button = gui_builder.get_object('save_points')
         self.open_image_button = gui_builder.get_object('open_image')
         self.load_point_type_button = gui_builder.get_object('load_point_type')
@@ -287,8 +287,7 @@ class Handler:
         return self.summary_values(0, 0, color)
 
     def init_draw_area(self, gui_builder):
-        images = ['background_image',
-                  'original_image',
+        images = ['original_image',
                   'bw_image',
                   'draw_image']
         for im in images:
@@ -330,11 +329,11 @@ class Handler:
         original = self.buffers_and_images.get('original')
         bw = self.buffers_and_images.get('bw')
         if button.get_active():
-            self.overlay.reorder_overlay(original.image, 0)
-            self.overlay.reorder_overlay(bw.image, 1)
+            original.image.hide()
+            bw.image.show()
         else:
-            self.overlay.reorder_overlay(original.image, 1)
-            self.overlay.reorder_overlay(bw.image, 0)
+            original.image.show()
+            bw.image.hide()
 
     def zoom_slide(self, slider, scroll, value):
         self.zoom_percent = round(value)
@@ -357,9 +356,9 @@ class Handler:
         if event.state & Gdk.ModifierType.CONTROL_MASK:
             x = event.x / self.zoom_percent
             y = event.y / self.zoom_percent
-            if event.direction == Gdk.ScrollDirection.DOWN:
+            if event.delta_y == 1:
                 self.zoom_percent = self.zoom_percent - 10
-            elif event.direction == Gdk.ScrollDirection.UP:
+            elif event.delta_y == -1:
                 self.zoom_percent = self.zoom_percent + 10
             self.check_zoom_range()
             self.pressed_x = x * self.zoom_percent
@@ -392,6 +391,7 @@ class Handler:
         yield True
         width = self.image_width * (self.zoom_percent / 100)
         height = self.image_height * (self.zoom_percent / 100)
+        self.layout.set_size(width, height)
         for bi in self.buffers_and_images.values():
             try:
                 buf_temp = bi.buf.scale_simple(width,
@@ -400,10 +400,11 @@ class Handler:
                 bi.image.set_from_pixbuf(buf_temp)
             except AttributeError:
                 self.warn_annotated_image()
-            progress = progress + 0.25
+            progress = progress + 0.33
             self.progress_bar.set_fraction(progress)
             yield True
         self.redraw_points()
+        self.progress_bar.set_fraction(1)
         self.progress_bar.set_text('Done!')
         yield False
 

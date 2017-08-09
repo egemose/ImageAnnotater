@@ -370,65 +370,38 @@
                 <property name="min_content_width">1000</property>
                 <property name="min_content_height">700</property>
                 <child>
-                  <object class="GtkViewport" id="viewport">
+                  <object class="GtkLayout" id="layout">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
+                    <property name="events">GDK_BUTTON_MOTION_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK | GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK | GDK_STRUCTURE_MASK</property>
+                    <signal name="button-press-event" handler="add_remove_point" swapped="no"/>
+                    <signal name="button-release-event" handler="add_remove_point" swapped="no"/>
+                    <signal name="motion-notify-event" handler="mouse_move" swapped="no"/>
+                    <signal name="scroll-event" handler="zoom_mouse_wheel" swapped="no"/>
                     <child>
-                      <object class="GtkOverlay" id="overlay">
+                      <object class="GtkImage" id="bw_image">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
-                        <child>
-                          <object class="GtkImage" id="background_image">
-                            <property name="visible">True</property>
-                            <property name="can_focus">False</property>
-                            <property name="pixbuf">background.png</property>
-                          </object>
-                          <packing>
-                            <property name="index">-1</property>
-                          </packing>
-                        </child>
-                        <child type="overlay">
-                          <object class="GtkImage" id="bw_image">
-                            <property name="visible">True</property>
-                            <property name="can_focus">False</property>
-                          </object>
-                        </child>
-                        <child type="overlay">
-                          <object class="GtkImage" id="original_image">
-                            <property name="visible">True</property>
-                            <property name="can_focus">False</property>
-                          </object>
-                          <packing>
-                            <property name="index">1</property>
-                          </packing>
-                        </child>
-                        <child type="overlay">
-                          <object class="GtkEventBox" id="event_box">
-                            <property name="visible">True</property>
-                            <property name="can_focus">False</property>
-                            <signal name="button-press-event" handler="add_remove_point" swapped="no"/>
-                            <signal name="button-release-event" handler="add_remove_point" swapped="no"/>
-                            <signal name="motion-notify-event" handler="mouse_move" swapped="no"/>
-                            <signal name="scroll-event" handler="zoom_mouse_wheel" swapped="no"/>
-                            <child>
-                              <object class="GtkImage" id="draw_image">
-                                <property name="visible">True</property>
-                                <property name="can_focus">False</property>
-                                <property name="pixbuf">draw_image.png</property>
-                              </object>
-                            </child>
-                          </object>
-                          <packing>
-                            <property name="index">2</property>
-                          </packing>
-                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkImage" id="original_image">
+                        <property name="visible">True</property>
+                        <property name="can_focus">False</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkImage" id="draw_image">
+                        <property name="visible">True</property>
+                        <property name="can_focus">False</property>
+                        <property name="pixbuf">draw_image.png</property>
                       </object>
                     </child>
                   </object>
                 </child>
               </object>
               <packing>
-                <property name="expand">False</property>
+                <property name="expand">True</property>
                 <property name="fill">True</property>
                 <property name="position">0</property>
               </packing>
