@@ -288,6 +288,22 @@ class Handler:
         self.zoom_percent = 100
         self.image_width = 100
         self.image_height = 100
+        self.do_run_idle_tasks = True
+        task = self.do_draw_markings_when_idle()
+        GObject.idle_add(task.__next__)
+
+    def do_draw_markings_when_idle(self):
+        while self.do_run_idle_tasks:
+            if self.do_drag:
+                pass
+            elif self.do_scroll:
+                pass
+            elif self.slider_pressed:
+                pass
+            else:
+                self.draw_markings()
+            yield True
+        yield False
 
     def summary_init_values(self, color='#FFFFFF'):
         return self.summary_values(0, 0, color)
@@ -304,6 +320,7 @@ class Handler:
     def delete_window(self, *args):
         if self.warning_dialog_response():
             return True
+        self.do_run_idle_tasks = False
         self.main_window.destroy()
 
     def warning_dialog_response(self):
@@ -380,6 +397,7 @@ class Handler:
         self.pressed_y = y * self.zoom_percent
         self.zoom()
         self.scroll(event)
+        self.move_draw_image()
 
     def zoom_pressed(self, button):
         if button.get_label() == 'Zoom too normal':
@@ -415,7 +433,6 @@ class Handler:
             progress = progress + 0.50
             self.progress_bar.set_fraction(progress)
             yield True
-        self.resize_draw_image()
         self.draw_markings()
         self.progress_bar.set_text('Done!')
         yield False
