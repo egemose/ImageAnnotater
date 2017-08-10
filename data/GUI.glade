@@ -414,7 +414,7 @@
                 <property name="orientation">vertical</property>
                 <child>
                   <object class="GtkLabel" id="last_entry_label">
-                    <property name="width_request">200</property>
+                    <property name="width_request">250</property>
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="label" translatable="yes">Last entry:</property>
@@ -427,7 +427,7 @@
                 </child>
                 <child>
                   <object class="GtkLabel" id="last_entry">
-                    <property name="width_request">200</property>
+                    <property name="width_request">250</property>
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="label" translatable="yes">...</property>

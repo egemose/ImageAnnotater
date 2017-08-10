@@ -285,13 +285,13 @@ class Handler:
         self.draw_buf_temp = None
         # ready the point type selection
         self.point_type_color = self.hex_color_to_rgba('#FF0000')
-        self.point_type = 'None'
+        self.point_type = None
         self.current_image = 'None'
         self.list_of_images = []
         self.tree_image_index = {}
         self.image_folder = None
         self.current_point_file = None
-        self.gtk_point_type_list.append(['#FF0000', 'None'])
+        #self.gtk_point_type_list.append(['#FF0000', 'None'])
         self.font = 'arial 11'
         self.bold_font = 'arial bold 11'
         self.background_color = '#FFFFFF'
@@ -601,20 +601,28 @@ class Handler:
         return dist_keep, p_keep
 
     def remove_marking(self, event):
-        if self.check_if_click(event):
-            dist, point = self.find_closest_point(event)
-            if dist < self.radius:
-                self.points_saved = False
-                self.point_list.remove(point)
-                label_text = 'removed: (%i, %i)' % (int(event.x), int(event.y))
-                self.last_entry_label.set_text(label_text)
-                key = self.current_image + '--' + point.type
-                summary = self.point_summary_dict.get(key)
-                new_summary = self.summary_values(summary.amount - 1,
-                                                  summary.size - point.size,
-                                                  summary.color)
-                self.point_summary_dict[key] = new_summary
-                self.update_summary()
+        if self.point_type is not None:
+            if self.check_if_click(event):
+                dist, point = self.find_closest_point(event)
+                if dist < self.radius:
+                    self.points_saved = False
+                    self.point_list.remove(point)
+                    label_text = 'removed: (%i, %i)' % (int(event.x), int(event.y))
+                    self.last_entry_label.set_text(label_text)
+                    key = self.current_image + '--' + point.type
+                    summary = self.point_summary_dict.get(key)
+                    if point.size is None:
+                        size = 0
+                    else:
+                        size = point.size
+                    new_summary = self.summary_values(summary.amount - 1,
+                                                      summary.size - size,
+                                                      summary.color)
+                    self.point_summary_dict[key] = new_summary
+                    self.update_summary()
+        else:
+            status_string = 'No point types loaded!'
+            self.status_bar.push(self.status_msg, status_string)
 
     def check_if_click(self, event, do_drag=False):
         if event.type == Gdk.EventType.BUTTON_PRESS:
@@ -632,10 +640,14 @@ class Handler:
         return False
 
     def add_marking(self, event):
-        if self.check_if_click(event, do_drag=True):
-            self.add_point(event)
-        elif event.type == Gdk.EventType.BUTTON_RELEASE:
-            self.add_size_mark(event)
+        if self.point_type is not None:
+            if self.check_if_click(event, do_drag=True):
+                self.add_point(event)
+            elif event.type == Gdk.EventType.BUTTON_RELEASE:
+                self.add_size_mark(event)
+        else:
+            status_string = 'No point types loaded!'
+            self.status_bar.push(self.status_msg, status_string)
 
     def add_size_mark(self, event):
         self.points_saved = False
@@ -881,8 +893,6 @@ class Handler:
         status_string = 'Point types loaded.'
         self.status_bar.push(self.status_msg, status_string)
         self.gtk_point_type_list.clear()
-        self.gtk_point_summary_list.clear()
-        self.point_summary_dict.clear()
         image = self.current_image.split('/')
         self.gtk_point_summary_list.append([image[-1], '', '', self.font,
                                             self.background_color])
@@ -893,8 +903,6 @@ class Handler:
             for point in sort_points:
                 self.update_point_types(point)
         self.point_type_button.set_active(0)
-        self.point_list = []
-        self.points_saved = True
         self.draw_markings()
 
     def update_point_types(self, row):
@@ -993,8 +1001,6 @@ class Handler:
         elif button.get_label() == 'Open image':
             text = 'Choose a image to open'
         elif button.get_label() == 'Load point types':
-            if self.warning_dialog_response():
-                return True
             text = 'Choose a file with the point types'
         elif button.get_label() == 'Open image folder':
             text = 'choose a folder with images'
