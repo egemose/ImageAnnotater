@@ -249,6 +249,7 @@ class Handler:
         self.status_warning = self.status_bar.get_context_id('Warning')
         self.show_missing_image_warning = True
         # ready the draw area
+        self.scroll_speed = 78
         self.radius = 10
         self.buffers_and_images = {}
         self.init_draw_area(gui_builder)
@@ -268,7 +269,6 @@ class Handler:
         self.tree_image_index = {}
         self.image_folder = None
         self.current_point_file = None
-        #self.gtk_point_type_list.append(['#FF0000', 'None'])
         self.font = 'arial 11'
         self.bold_font = 'arial bold 11'
         self.background_color = '#FFFFFF'
@@ -384,11 +384,15 @@ class Handler:
             self.zoom_mouse_wheel(event)
             return True
         else:
-            y_updated = self.v_adjust.get_value() + event.delta_y * 77
-            self.v_adjust.set_value(y_updated)
+            self.do_scroll_step(event)
             self.move_draw_image()
             self.draw_markings()
             return True
+
+    def do_scroll_step(self, event):
+        y_updated = self.v_adjust.get_value()
+        y_updated = y_updated + event.delta_y * self.scroll_speed
+        self.v_adjust.set_value(y_updated)
 
     def zoom_mouse_wheel(self, event):
         x = event.x / self.zoom_percent
