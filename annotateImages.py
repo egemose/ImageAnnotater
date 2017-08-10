@@ -207,6 +207,23 @@ class PointsNotSavedDialog(Gtk.Dialog):
         self.show_all()
 
 
+class OverridePointImageDialog(Gtk.Dialog):
+    def __init__(self, parent):
+        header = 'Point - Image mismatch'
+        response = (Gtk.STOCK_NO,
+                    Gtk.ResponseType.NO,
+                    Gtk.STOCK_YES,
+                    Gtk.ResponseType.YES)
+        Gtk.Dialog.__init__(self, header,  parent, 0, response)
+        self.set_default_size(150, 100)
+        label = Gtk.Label('The points loaded do not match the current image.')
+        label2 = Gtk.Label('Do you want to show the point anyway?')
+        box = self.get_content_area()
+        box.add(label)
+        box.add(label2)
+        self.show_all()
+
+
 class Handler:
     def __init__(self, gui_builder):
         # named tuples used.
@@ -283,6 +300,7 @@ class Handler:
         # init list to store points in
         self.point_list = []
         self.points_saved = True
+        self.override_point_image_match = False
         # init variables for zooming
         self.slider_pressed = False
         self.zoom_percent = 100
@@ -325,14 +343,24 @@ class Handler:
 
     def warning_dialog_response(self):
         if not self.points_saved:
-            warring_dialog = PointsNotSavedDialog(self.main_window)
-            response = warring_dialog.run()
+            warning_dialog = PointsNotSavedDialog(self.main_window)
+            response = warning_dialog.run()
             if response == Gtk.ResponseType.OK:
-                warring_dialog.destroy()
+                warning_dialog.destroy()
                 return False
             elif response == Gtk.ResponseType.CANCEL:
-                warring_dialog.destroy()
+                warning_dialog.destroy()
                 return True
+
+    def warning_point_image_mismatch(self):
+        warning_dialog = OverridePointImageDialog(self.main_window)
+        response = warning_dialog.run()
+        if response == Gtk.ResponseType.YES:
+            warning_dialog.destroy()
+            return True
+        elif response == Gtk.ResponseType.NO:
+            warning_dialog.destroy()
+            return False
 
     def hex_color_to_rgba(self, hex_color):
         h = hex_color.lstrip('#')
@@ -723,25 +751,27 @@ class Handler:
         Gdk.cairo_set_source_pixbuf(cr, draw_buf, 0, 0)
         cr.paint()
         for point in self.point_list:
-            x = int(point.x * (self.zoom_percent / 100) - offset_x)
-            y = int(point.y * (self.zoom_percent / 100) - offset_y)
-            if point.size is None:
-                cr.set_source_rgba(point.r, point.g, point.b, point.a)
-                cr.arc(x, y, self.radius, 0, 2 * pi)
-                cr.fill()
-            else:
-                size = point.size * (self.zoom_percent / 100)
-                cr.set_source_rgba(point.r, point.g, point.b, point.a)
-                cr.arc(x, y, self.radius, 0, 2 * pi)
-                cr.fill()
-                cr.move_to(x, y)
-                x = int(x + size * cos(point.angle))
-                y = int(y - size * sin(point.angle))
-                cr.line_to(x, y)
-                cr.set_line_width(3)
-                cr.stroke()
-                cr.arc(x, y, self.radius / 2, 0, 2 * pi)
-                cr.fill()
+            if point.image == self.current_image or \
+                    self.override_point_image_match:
+                x = int(point.x * (self.zoom_percent / 100) - offset_x)
+                y = int(point.y * (self.zoom_percent / 100) - offset_y)
+                if point.size is None:
+                    cr.set_source_rgba(point.r, point.g, point.b, point.a)
+                    cr.arc(x, y, self.radius, 0, 2 * pi)
+                    cr.fill()
+                else:
+                    size = point.size * (self.zoom_percent / 100)
+                    cr.set_source_rgba(point.r, point.g, point.b, point.a)
+                    cr.arc(x, y, self.radius, 0, 2 * pi)
+                    cr.fill()
+                    cr.move_to(x, y)
+                    x = int(x + size * cos(point.angle))
+                    y = int(y - size * sin(point.angle))
+                    cr.line_to(x, y)
+                    cr.set_line_width(3)
+                    cr.stroke()
+                    cr.arc(x, y, self.radius / 2, 0, 2 * pi)
+                    cr.fill()
         surface = cr.get_target()
         draw_buf = Gdk.pixbuf_get_from_surface(surface, 0, 0, width, height)
         draw.image.set_from_pixbuf(draw_buf)
@@ -889,6 +919,7 @@ class Handler:
 
     def load_points(self, filename):
         self.current_point_file = filename
+        image_point_match = False
         status_string = 'Point loaded.'
         self.status_bar.push(self.status_msg, status_string)
         self.point_list = []
@@ -898,6 +929,8 @@ class Handler:
             reader.__next__()
             for row in reader:
                 image = row[0]
+                if image == self.current_image:
+                    image_point_match = True
                 point_type = row[1]
                 x = float(row[2])
                 y = float(row[3])
@@ -913,6 +946,9 @@ class Handler:
                 a = float(row[9])
                 self.point_list.append(self.point(image, point_type, x, y,
                                                   dist, angle, r, g, b, a))
+        if not image_point_match:
+            if self.warning_point_image_mismatch():
+                self.override_point_image_match = True
         self.make_summary_dict()
         self.update_summary()
         self.points_saved = True
