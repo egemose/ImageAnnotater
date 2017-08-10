@@ -94,13 +94,6 @@
       <attribute name="label">_Help</attribute>
       <section>
         <item>
-          <attribute name="label">_Shortcuts</attribute>
-          <attribute name="action">app.shortcuts</attribute>
-          <attribute name="accel">&lt;Primary&gt;exclam</attribute>
-        </item>
-      </section>
-      <section>
-        <item>
           <attribute name="label">_About</attribute>
           <attribute name="action">app.about</attribute>
           <attribute name="accel">&lt;Primary&gt;a</attribute>

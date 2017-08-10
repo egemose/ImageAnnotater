@@ -57,15 +57,12 @@ class App(Gtk.Application):
         self.make_action('save_markings', self.on_save_markings)
         self.make_action('save_as_markings', self.on_save_as_markings)
         self.make_action('quit', self.on_quit)
-
         self.make_action('previous_image', self.on_previous_image)
         self.make_action('next_image', self.on_next_image)
         self.make_action('switch_image', self.on_switch_image)
         self.make_action('zoom_out', self.on_zoom_out)
         self.make_action('zoom_in', self.on_zoom_in)
         self.make_action('zoom_normal', self.on_zoom_normal)
-
-        self.make_action('shortcuts', self.on_shortcuts)
         self.make_action('about', self.on_about)
 
     def do_activate(self):
@@ -133,12 +130,6 @@ class App(Gtk.Application):
     def on_zoom_normal(self, action, param):
         self.handler.zoom_pressed(self.handler.zoom_normal)
 
-    def on_shortcuts(self, action, param):
-        shortcut_dialog = ShortcutDialog(self.window)
-        response = shortcut_dialog.run()
-        if response:
-            shortcut_dialog.destroy()
-
     def on_preferences(self, action, pram):
         preferences_dialog = PreferencesDialog(self.window)
         response = preferences_dialog.run()
@@ -153,20 +144,6 @@ class PreferencesDialog(Gtk.Dialog):
         Gtk.Dialog.__init__(self, header, parent, 0, response)
         self.set_default_size(150, 100)
         label = Gtk.Label('Coming soon')
-        label2 = Gtk.Label('')
-        box = self.get_content_area()
-        box.add(label)
-        box.add(label2)
-        self.show_all()
-
-
-class ShortcutDialog(Gtk.Dialog):
-    def __init__(self, parent):
-        header = 'Shortcuts'
-        response = (Gtk.STOCK_OK, Gtk.ResponseType.OK)
-        Gtk.Dialog.__init__(self, header, parent, 0, response)
-        self.set_default_size(150, 100)
-        label = Gtk.Label('Shortcuts:')
         label2 = Gtk.Label('')
         box = self.get_content_area()
         box.add(label)
