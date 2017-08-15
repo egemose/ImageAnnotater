@@ -805,6 +805,10 @@ class Handler:
         for file in os.scandir(self.image_folder):
             if file.path.endswith('JPG'):
                 yield file.path
+            elif file.path.endswith('_annotated.png'):
+                pass
+            elif file.path.endswith('png'):
+                yield file.path
 
     @staticmethod
     def add_image_filters(dialog):
