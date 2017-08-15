@@ -364,6 +364,9 @@ class Handler:
 
     def zoom_slide(self, slider, scroll, value):
         self.zoom_percent = round(value)
+        if abs(slider.get_value() - value) >= 10:
+            self.check_zoom_range()
+            self.zoom()
 
     def check_zoom_range(self):
         if self.zoom_percent > 250:
@@ -382,12 +385,11 @@ class Handler:
     def mouse_wheel(self, event_box, event):
         if event.state & Gdk.ModifierType.CONTROL_MASK:
             self.zoom_mouse_wheel(event)
-            return True
         else:
             self.do_scroll_step(event)
             self.move_draw_image()
             self.draw_markings()
-            return True
+        return True
 
     def do_scroll_step(self, event):
         y_updated = self.v_adjust.get_value()
