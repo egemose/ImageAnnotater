@@ -7,6 +7,7 @@ import cairo
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gdk, Gio, GdkPixbuf, GObject
+import platform
 
 
 def cl_arg():
@@ -149,6 +150,9 @@ class PreferencesDialog(Gtk.Dialog):
         box.add(label)
         box.add(label2)
         self.show_all()
+        # drawing size
+        # ending of annotated files
+        # working dir
 
 
 class AboutDialog(Gtk.Dialog):
@@ -203,6 +207,9 @@ class OverridePointImageDialog(Gtk.Dialog):
 
 class Handler:
     def __init__(self, gui_builder):
+        self.dir_delimiter = '/'
+        if platform.system().startswith('Win'):
+            self.dir_delimiter = '\\'
         # named tuples used.
         self.buf_and_image = namedtuple('buf_and_image', ['buf', 'image'])
         self.color = namedtuple('color', ['r', 'g', 'b', 'a'])
@@ -690,7 +697,7 @@ class Handler:
             else:
                 image_font = self.font
                 point_font = self.font
-            image = full_image.split('/')[-1]
+            image = full_image.split(self.dir_delimiter)[-1]
             if image != old_image:
                 self.gtk_point_summary_list.append([image, '', '',
                                                     image_font,
@@ -802,13 +809,13 @@ class Handler:
         self.list_of_images = sorted(files, key=lambda x: x)
 
     def get_files_in_dir(self):
-        for file in os.scandir(self.image_folder):
-            if file.path.endswith('JPG'):
-                yield file.path
-            elif file.path.endswith('_annotated.png'):
+        for file in os.listdir(self.image_folder):
+            if file.endswith('JPG'):
+                yield os.path.join(self.image_folder, file)
+            elif file.endswith('_annotated.png'):
                 pass
-            elif file.path.endswith('png'):
-                yield file.path
+            elif file.endswith('png'):
+                yield os.path.join(self.image_folder, file)
 
     @staticmethod
     def add_image_filters(dialog):
@@ -880,7 +887,7 @@ class Handler:
         status_string = 'Point types loaded.'
         self.status_bar.push(self.status_msg, status_string)
         self.gtk_point_type_list.clear()
-        image = self.current_image.split('/')
+        image = self.current_image.split(self.dir_delimiter)
         self.gtk_point_summary_list.append([image[-1], '', '', self.font,
                                             self.background_color])
         with open(filename, newline='') as csv_file:
@@ -923,24 +930,27 @@ class Handler:
             reader = csv.reader(csv_file, delimiter=',')
             reader.__next__()
             for row in reader:
-                image = row[0]
-                if image == self.current_image:
-                    image_point_match = True
-                point_type = row[1]
-                x = float(row[2])
-                y = float(row[3])
-                if row[4] != '':
-                    dist = float(row[4])
-                    angle = float(row[5])
+                if not row:
+                    pass
                 else:
-                    dist = None
-                    angle = None
-                r = float(row[6])
-                g = float(row[7])
-                b = float(row[8])
-                a = float(row[9])
-                self.point_list.append(self.point(image, point_type, x, y,
-                                                  dist, angle, r, g, b, a))
+                    image = row[0]
+                    if image == self.current_image:
+                        image_point_match = True
+                    point_type = row[1]
+                    x = float(row[2])
+                    y = float(row[3])
+                    if row[4] != '':
+                        dist = float(row[4])
+                        angle = float(row[5])
+                    else:
+                        dist = None
+                        angle = None
+                    r = float(row[6])
+                    g = float(row[7])
+                    b = float(row[8])
+                    a = float(row[9])
+                    self.point_list.append(self.point(image, point_type, x, y,
+                                                      dist, angle, r, g, b, a))
         if not image_point_match:
             if self.warning_point_image_mismatch():
                 self.override_point_image_match = True
