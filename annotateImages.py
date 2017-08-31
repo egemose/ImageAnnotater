@@ -79,6 +79,7 @@ class App(Gtk.Application):
         self.window.set_title('Image Annotating')
         self.window.set_application(self)
         self.window.show_all()
+        self.handler.set_cursor()
         main(self.handler)
 
     def make_action(self, name, func):
@@ -293,6 +294,10 @@ class Handler:
         self.do_run_idle_tasks = True
         task = self.do_draw_markings_when_idle()
         GObject.idle_add(task.__next__)
+
+    def set_cursor(self):
+        cross = Gdk.Cursor(Gdk.CursorType.CROSSHAIR)
+        self.layout.get_bin_window().set_cursor(cross)
 
     def do_draw_markings_when_idle(self):
         while self.do_run_idle_tasks:
