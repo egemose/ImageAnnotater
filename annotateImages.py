@@ -215,7 +215,7 @@ class Handler:
         self.buf_and_image = namedtuple('buf_and_image', ['buf', 'image'])
         self.color = namedtuple('color', ['r', 'g', 'b', 'a'])
         self.point = namedtuple('point', ('image', 'type',
-                                          'x', 'y', 'x2', 'y2')
+                                          'x', 'y', 'x2', 'y2', 'box')
                                 + self.color._fields)
         self.summary_values = namedtuple('summary_values', ['amount', 'size',
                                                             'color'])
@@ -268,6 +268,7 @@ class Handler:
         self.pressed_y = None
         self.draw_temp = None
         self.draw_buf_temp = None
+        self.do_draw_bounding_boxes = False
         # ready the point type selection
         self.point_type_color = self.hex_color_to_rgba('#FF0000')
         self.point_type = None
@@ -372,6 +373,12 @@ class Handler:
         else:
             original.image.show()
             bw.image.hide()
+
+    def switch_to_bounding_box(self, button):
+        if button.get_active():
+            self.do_draw_bounding_boxes = True
+        else:
+            self.do_draw_bounding_boxes = False
 
     def zoom_slide(self, slider, scroll, value):
         self.zoom_percent = round(value)
@@ -540,13 +547,14 @@ class Handler:
         if self.do_scroll:
             self.scroll(event)
 
-    def make_point(self, x, y, dist=None, angle=None):
+    def make_point(self, x, y, x2=None, y2=None, box=False):
         point = self.point(self.current_image,
                            self.point_type,
                            x,
                            y,
-                           dist,
-                           angle,
+                           x2,
+                           y2,
+                           box,
                            self.point_type_color.r,
                            self.point_type_color.g,
                            self.point_type_color.b,
@@ -556,7 +564,10 @@ class Handler:
     def make_line_marking(self, event):
         point_start = self.make_point(self.pressed_x, self.pressed_y)
         point_stop = self.make_point(event.x, event.y)
-        self.draw_line_marking_live(point_start, point_stop)
+        if self.do_draw_bounding_boxes:
+            self.draw_box_marking_live(point_start, point_stop)
+        else:
+            self.draw_line_marking_live(point_start, point_stop)
 
     def add_remove_point(self, event_box, event):
         if event.button == 1:
@@ -658,12 +669,14 @@ class Handler:
 
     def add_size_mark(self, event):
         self.points_saved = False
+        box = self.do_draw_bounding_boxes
         point = self.make_point(self.pressed_x / (self.zoom_percent / 100),
                                 self.pressed_y / (self.zoom_percent / 100),
                                 event.x / (self.zoom_percent / 100),
-                                event.y / (self.zoom_percent / 100))
-        dist = self.get_size(point)
+                                event.y / (self.zoom_percent / 100),
+                                box)
         self.point_list.append(point)
+        dist = self.get_size(point)
         label_text = '%s %i px, %i degrees' % (self.point_type,
                                                int(dist),
                                                int(self.get_angle(point)))
@@ -754,7 +767,37 @@ class Handler:
         draw_buf = Gdk.pixbuf_get_from_surface(surface, 0, 0, width, height)
         self.draw_temp.image.set_from_pixbuf(draw_buf)
 
-    def draw_markings(self):
+    def draw_box_marking_live(self, point_start, point_stop):
+        offset_x = self.h_adjust.get_value()
+        offset_y = self.v_adjust.get_value()
+        width = self.draw_buf_temp.get_width()
+        height = self.draw_buf_temp.get_height()
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
+        cr = cairo.Context(surface)
+        Gdk.cairo_set_source_pixbuf(cr, self.draw_buf_temp, 0, 0)
+        cr.paint()
+        cr.set_source_rgba(point_start.r,
+                           point_start.g,
+                           point_start.b,
+                           point_start.a)
+        x = int(point_start.x - offset_x)
+        y = int(point_start.y - offset_y)
+        cr.arc(x, y, self.radius, 0, 2 * pi)
+        cr.fill()
+        cr.move_to(x, y)
+        x_stop = int(point_stop.x - offset_x)
+        y_stop = int(point_stop.y - offset_y)
+        cr.line_to(x, y_stop)
+        cr.line_to(x_stop, y_stop)
+        cr.line_to(x_stop, y)
+        cr.line_to(x, y)
+        cr.set_line_width(3)
+        cr.stroke()
+        cr.fill()
+        surface = cr.get_target()
+        draw_buf = Gdk.pixbuf_get_from_surface(surface, 0, 0, width, height)
+        self.draw_temp.image.set_from_pixbuf(draw_buf)
+
     def get_draw_coordinate(self, p):
         offset_x = self.h_adjust.get_value()
         offset_y = self.v_adjust.get_value()
@@ -766,6 +809,8 @@ class Handler:
             x2 = int(p.x2 * (self.zoom_percent / 100) - offset_x)
             y2 = int(p.y2 * (self.zoom_percent / 100) - offset_y)
             return x, y, x2, y2
+
+    def draw_markings(self):
         draw = self.draw_image_and_buf
         draw_buf = draw.buf
         width = draw_buf.get_width()
@@ -778,14 +823,21 @@ class Handler:
             if point.image == self.current_image or \
                     self.override_point_image_match:
                 x, y, x2, y2 = self.get_draw_coordinate(point)
+                cr.set_source_rgba(point.r, point.g, point.b, point.a)
+                cr.arc(x, y, self.radius, 0, 2 * pi)
+                cr.fill()
                 if x2 is None:
-                    cr.set_source_rgba(point.r, point.g, point.b, point.a)
-                    cr.arc(x, y, self.radius, 0, 2 * pi)
+                    pass
+                elif point.box:
+                    cr.move_to(x, y)
+                    cr.line_to(x, y2)
+                    cr.line_to(x2, y2)
+                    cr.line_to(x2, y)
+                    cr.line_to(x, y)
+                    cr.set_line_width(3)
+                    cr.stroke()
                     cr.fill()
                 else:
-                    cr.set_source_rgba(point.r, point.g, point.b, point.a)
-                    cr.arc(x, y, self.radius, 0, 2 * pi)
-                    cr.fill()
                     cr.move_to(x, y)
                     cr.line_to(x2, y2)
                     cr.set_line_width(3)
@@ -934,7 +986,7 @@ class Handler:
             writer = csv.writer(csv_file)
             writer.writerow(header)
             for p in self.point_list:
-                writer.writerow([p.image, p.type, p.x, p.y, p.x2, p.y2,
+                writer.writerow([p.image, p.type, p.x, p.y, p.x2, p.y2, p.box,
                                  p.r, p.g, p.b, p.a])
 
     def load_points(self, filename):

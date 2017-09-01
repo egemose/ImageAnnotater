@@ -219,6 +219,22 @@
                   </packing>
                 </child>
                 <child>
+                  <object class="GtkToggleToolButton" id="draw_boxes">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="tooltip_text" translatable="yes">Draw bounding box</property>
+                    <property name="label" translatable="yes">Draw bounding box</property>
+                    <property name="use_underline">True</property>
+                    <property name="stock_id">gtk-zoom-fit</property>
+                    <signal name="toggled" handler="switch_to_bounding_box"
+                    swapped="no"/>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="homogeneous">False</property>
+                  </packing>
+                </child>
+                <child>
                   <object class="GtkSeparatorToolItem" id="seperator2">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
