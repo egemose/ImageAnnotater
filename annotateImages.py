@@ -49,7 +49,6 @@ class App(Gtk.Application):
 
     def do_startup(self):
         Gtk.Application.do_startup(self)
-
         self.make_action('preferences', self.on_preferences)
         self.make_action('open_image_folder', self.on_open_image_folder)
         self.make_action('open_image', self.on_open_image)
@@ -80,7 +79,6 @@ class App(Gtk.Application):
         self.window.set_title('Image Annotating')
         self.window.set_application(self)
         self.window.show_all()
-        self.handler.set_cursor()
         main(self.handler)
 
     def make_action(self, name, func):
@@ -300,9 +298,11 @@ class Handler:
         task = self.do_draw_markings_when_idle()
         GObject.idle_add(task.__next__)
 
-    def set_cursor(self):
-        cross = Gdk.Cursor(Gdk.CursorType.CROSSHAIR)
-        self.layout.get_bin_window().set_cursor(cross)
+    def set_cursor(self, cursor_type=None):
+        cursor = Gdk.Cursor(Gdk.CursorType.ARROW)
+        if cursor_type == 'cross':
+            cursor = Gdk.Cursor(Gdk.CursorType.CROSSHAIR)
+        self.layout.get_bin_window().set_cursor(cursor)
 
     def do_draw_markings_when_idle(self):
         while self.do_run_idle_tasks:
@@ -382,8 +382,10 @@ class Handler:
     def switch_to_bounding_box(self, button):
         if button.get_active():
             self.do_draw_bounding_boxes = True
+            self.set_cursor('cross')
         else:
             self.do_draw_bounding_boxes = False
+            self.set_cursor()
 
     def zoom_slide(self, slider, scroll, value):
         self.zoom_percent = round(value)
