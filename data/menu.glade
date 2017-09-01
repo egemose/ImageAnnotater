@@ -74,6 +74,13 @@
       </section>
       <section>
         <item>
+          <attribute name="label">_Switch bounding boxes</attribute>
+          <attribute name="action">app.switch_to_boundingbox</attribute>
+          <attribute name="accel">&lt;Primary&gt;b</attribute>
+        </item>
+      </section>
+      <section>
+        <item>
           <attribute name="label">_Zoom out</attribute>
           <attribute name="action">app.zoom_out</attribute>
           <attribute name="accel">&lt;Primary&gt;minus</attribute>

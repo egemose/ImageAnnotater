@@ -61,6 +61,7 @@ class App(Gtk.Application):
         self.make_action('previous_image', self.on_previous_image)
         self.make_action('next_image', self.on_next_image)
         self.make_action('switch_image', self.on_switch_image)
+        self.make_action('switch_to_boundingbox', self.on_switch_bounding_box)
         self.make_action('zoom_out', self.on_zoom_out)
         self.make_action('zoom_in', self.on_zoom_in)
         self.make_action('zoom_normal', self.on_zoom_normal)
@@ -122,6 +123,9 @@ class App(Gtk.Application):
 
     def on_switch_image(self, action, param):
         self.handler.switch_image_shortcut()
+
+    def on_switch_bounding_box(self, action, param):
+        self.handler.switch_bounding_box_shortcut()
 
     def on_zoom_out(self, action, param):
         self.handler.zoom_pressed(self.handler.zoom_out_button)
@@ -243,6 +247,7 @@ class Handler:
         self.point_type_button = gui_builder.get_object('select_point_type_box')
         self.switch_image_button = gui_builder.get_object('switch_image')
         self.switch_image_button.set_sensitive(False)
+        self.switch_box_button = gui_builder.get_object('draw_boxes')
         self.progress_bar = gui_builder.get_object('progress_bar')
         self.last_entry_label = gui_builder.get_object('last_entry')
         self.next_image_button = gui_builder.get_object('open_next_image')
@@ -532,6 +537,13 @@ class Handler:
                 self.switch_image_button.set_active(False)
             else:
                 self.switch_image_button.set_active(True)
+
+    def switch_bounding_box_shortcut(self):
+        if self.switch_box_button.get_sensitive():
+            if self.switch_box_button.get_active():
+                self.switch_box_button.set_active(False)
+            else:
+                self.switch_box_button.set_active(True)
 
     def switch_point_type(self, key_name):
         try:
