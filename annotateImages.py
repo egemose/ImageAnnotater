@@ -215,8 +215,7 @@ class Handler:
         self.buf_and_image = namedtuple('buf_and_image', ['buf', 'image'])
         self.color = namedtuple('color', ['r', 'g', 'b', 'a'])
         self.point = namedtuple('point', ('image', 'type',
-                                          'x', 'y',
-                                          'size', 'angle')
+                                          'x', 'y', 'x2', 'y2')
                                 + self.color._fields)
         self.summary_values = namedtuple('summary_values', ['amount', 'size',
                                                             'color'])
@@ -595,6 +594,22 @@ class Handler:
         dist_keep = dist_keep * (self.zoom_percent / 100)
         return dist_keep, p_keep
 
+    @staticmethod
+    def get_size(p):
+        if p.x2 is None:
+            return 0
+        else:
+            size = sqrt((p.x2-p.x) ** 2 + (p.y2-p.y) ** 2)
+            return size
+
+    @staticmethod
+    def get_angle(p):
+        if p.x2 is None:
+            return 0
+        else:
+            angle = atan2(-(p.y2-p.y), (p.x2-p.x)) / pi * 180
+            return angle
+
     def remove_marking(self, event):
         if self.point_type is not None:
             if self.check_if_click(event):
@@ -606,10 +621,7 @@ class Handler:
                     self.last_entry_label.set_text(label_text)
                     key = self.current_image + '--' + point.type
                     summary = self.point_summary_dict.get(key)
-                    if point.size is None:
-                        size = 0
-                    else:
-                        size = point.size
+                    size = self.get_size(point)
                     new_summary = self.summary_values(summary.amount - 1,
                                                       summary.size - size,
                                                       summary.color)
@@ -646,19 +658,15 @@ class Handler:
 
     def add_size_mark(self, event):
         self.points_saved = False
-        diff_x = event.x - self.pressed_x
-        diff_y = event.y - self.pressed_y
-        dist = sqrt(diff_x ** 2 + diff_y ** 2) / (self.zoom_percent / 100)
-        angle = atan2(-diff_y, diff_x)
-        display_angle = angle / pi * 180
         point = self.make_point(self.pressed_x / (self.zoom_percent / 100),
                                 self.pressed_y / (self.zoom_percent / 100),
-                                dist,
-                                angle)
+                                event.x / (self.zoom_percent / 100),
+                                event.y / (self.zoom_percent / 100))
+        dist = self.get_size(point)
         self.point_list.append(point)
         label_text = '%s %i px, %i degrees' % (self.point_type,
                                                int(dist),
-                                               int(display_angle))
+                                               int(self.get_angle(point)))
         self.last_entry_label.set_text(label_text)
         key = self.current_image + '--' + self.point_type
         summary = self.point_summary_dict.get(key)
@@ -760,24 +768,20 @@ class Handler:
         for point in self.point_list:
             if point.image == self.current_image or \
                     self.override_point_image_match:
-                x = int(point.x * (self.zoom_percent / 100) - offset_x)
-                y = int(point.y * (self.zoom_percent / 100) - offset_y)
-                if point.size is None:
+                x, y, x2, y2 = self.get_draw_coordinate(point)
+                if x2 is None:
                     cr.set_source_rgba(point.r, point.g, point.b, point.a)
                     cr.arc(x, y, self.radius, 0, 2 * pi)
                     cr.fill()
                 else:
-                    size = point.size * (self.zoom_percent / 100)
                     cr.set_source_rgba(point.r, point.g, point.b, point.a)
                     cr.arc(x, y, self.radius, 0, 2 * pi)
                     cr.fill()
                     cr.move_to(x, y)
-                    x = int(x + size * cos(point.angle))
-                    y = int(y - size * sin(point.angle))
-                    cr.line_to(x, y)
+                    cr.line_to(x2, y2)
                     cr.set_line_width(3)
                     cr.stroke()
-                    cr.arc(x, y, self.radius / 2, 0, 2 * pi)
+                    cr.arc(x2, y2, self.radius / 2, 0, 2 * pi)
                     cr.fill()
         surface = cr.get_target()
         draw_buf = Gdk.pixbuf_get_from_surface(surface, 0, 0, width, height)
@@ -921,7 +925,7 @@ class Handler:
             writer = csv.writer(csv_file)
             writer.writerow(header)
             for p in self.point_list:
-                writer.writerow([p.image, p.type, p.x, p.y, p.size, p.angle,
+                writer.writerow([p.image, p.type, p.x, p.y, p.x2, p.y2,
                                  p.r, p.g, p.b, p.a])
 
     def load_points(self, filename):
@@ -969,10 +973,7 @@ class Handler:
         for p in self.point_list:
             color = self.rgba_color_to_hex(p)
             key = p.image + '--' + p.type
-            if p.size is None:
-                size = 0
-            else:
-                size = p.size
+            size = self.get_size(p)
             if key not in self.point_summary_dict:
                 values = self.summary_values(1, size, color)
                 self.point_summary_dict.update({key: values})
