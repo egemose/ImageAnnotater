@@ -755,8 +755,17 @@ class Handler:
         self.draw_temp.image.set_from_pixbuf(draw_buf)
 
     def draw_markings(self):
+    def get_draw_coordinate(self, p):
         offset_x = self.h_adjust.get_value()
         offset_y = self.v_adjust.get_value()
+        x = int(p.x * (self.zoom_percent / 100) - offset_x)
+        y = int(p.y * (self.zoom_percent / 100) - offset_y)
+        if p.x2 is None:
+            return x, y, None, None
+        else:
+            x2 = int(p.x2 * (self.zoom_percent / 100) - offset_x)
+            y2 = int(p.y2 * (self.zoom_percent / 100) - offset_y)
+            return x, y, x2, y2
         draw = self.draw_image_and_buf
         draw_buf = draw.buf
         width = draw_buf.get_width()
