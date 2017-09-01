@@ -1024,17 +1024,21 @@ class Handler:
                     x = float(row[2])
                     y = float(row[3])
                     if row[4] != '':
-                        dist = float(row[4])
-                        angle = float(row[5])
+                        x2 = float(row[4])
+                        y2 = float(row[5])
                     else:
-                        dist = None
-                        angle = None
-                    r = float(row[6])
-                    g = float(row[7])
-                    b = float(row[8])
-                    a = float(row[9])
+                        x2 = None
+                        y2 = None
+                    if row[6] == 'True':
+                        box = True
+                    else:
+                        box = False
+                    r = float(row[7])
+                    g = float(row[8])
+                    b = float(row[9])
+                    a = float(row[10])
                     self.point_list.append(self.point(image, point_type, x, y,
-                                                      dist, angle, r, g, b, a))
+                                                      x2, y2, box, r, g, b, a))
         if not image_point_match:
             if self.warning_point_image_mismatch():
                 self.override_point_image_match = True
