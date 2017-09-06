@@ -267,6 +267,11 @@ class Handler:
         self.window_width = 0
         self.do_scroll = False
         self.do_drag = False
+        self.pressed_on_point = False
+        self.some_button_pressed = False
+        self.pressed_on_point_head = False
+        self.pressed_on_point_tail = False
+        self.point_clicked = None
         self.pressed_x = None
         self.pressed_y = None
         self.draw_temp = None
@@ -560,6 +565,8 @@ class Handler:
             self.make_line_marking(event)
         if self.do_scroll:
             self.scroll(event)
+        if self.pressed_on_point:
+            self.point_clicked = self.move_marking_live(event)
 
     def make_point(self, x, y, x2=None, y2=None, box=False):
         point = self.point(self.current_image,
@@ -581,15 +588,24 @@ class Handler:
         self.draw_live(point)
 
     def add_remove_point(self, event_box, event):
+        if event.type == Gdk.EventType.BUTTON_PRESS:
+            self.some_button_pressed = True
         if event.button == 1:
             if event.state & Gdk.ModifierType.CONTROL_MASK:
                 self.remove_marking(event)
             else:
-                self.add_marking(event)
+                if event.type == Gdk.EventType.BUTTON_PRESS:
+                    self.pressed_on_point = self.find_closest_point(event)
+                if self.some_button_pressed and not self.pressed_on_point:
+                    self.add_marking(event)
         elif event.button == 3:
             self.remove_marking(event)
         elif event.button == 2:
             self.button_scroll(event)
+        if event.type == Gdk.EventType.BUTTON_RELEASE:
+            self.pressed_on_point_head = False
+            self.pressed_on_point_tail = False
+            self.some_button_pressed = False
         self.draw_markings()
 
     def button_scroll(self, event):
@@ -611,8 +627,23 @@ class Handler:
             if dist < dist_keep:
                 dist_keep = dist
                 p_keep = p
+                self.pressed_on_point_head = True
+        for p in self.point_list:
+            if p.x2 is not None:
+                dist = sqrt((p.x2 - scaled_x) ** 2 + (p.y2 - scaled_y) ** 2)
+                if dist < dist_keep:
+                    dist_keep = dist
+                    p_keep = p
+                    self.pressed_on_point_tail = True
+                    self.pressed_on_point_head = False
         dist_keep = dist_keep * (self.zoom_percent / 100)
-        return dist_keep, p_keep
+        smaller_then_radius = dist_keep < self.radius
+        if not smaller_then_radius:
+            self.pressed_on_point_tail = False
+            self.pressed_on_point_head = False
+        else:
+            self.point_clicked = p_keep
+        return smaller_then_radius
 
     @staticmethod
     def get_size(p):
@@ -633,13 +664,12 @@ class Handler:
     def remove_marking(self, event):
         if self.point_type is not None:
             if self.check_if_click(event):
-                dist, point = self.find_closest_point(event)
-                if dist < self.radius:
+                if self.find_closest_point(event):
                     self.points_saved = False
-                    self.point_list.remove(point)
+                    self.point_list.remove(self.point_clicked)
                     label_text = 'removed: (%i, %i)' % (int(event.x), int(event.y))
                     self.update_label(label_text)
-                    self.make_new_summary(point, add=False)
+                    self.make_new_summary(self.point_clicked, add=False)
                     self.update_summary()
         else:
             status_string = 'No point types loaded!'
@@ -703,18 +733,40 @@ class Handler:
         self.update_summary()
 
     def add_point(self, event):
-        dist, _ = self.find_closest_point(event)
-        if dist > 2 * self.radius:
-            self.points_saved = False
-            point = self.make_point(event.x / (self.zoom_percent / 100),
-                                    event.y / (self.zoom_percent / 100))
-            self.point_list.append(point)
-            label_text = '%s (%i, %i)' % (self.point_type,
-                                          int(point.x),
-                                          int(point.y))
-            self.update_label(label_text)
-            self.make_new_summary(point, add=True)
-            self.update_summary()
+        self.points_saved = False
+        point = self.make_point(event.x / (self.zoom_percent / 100),
+                                event.y / (self.zoom_percent / 100))
+        self.point_list.append(point)
+        label_text = '%s (%i, %i)' % (self.point_type,
+                                      int(point.x),
+                                      int(point.y))
+        self.update_label(label_text)
+        self.make_new_summary(point, add=True)
+        self.update_summary()
+
+    def move_marking_live(self, event):
+        point = self.point_clicked
+        x_new = event.x
+        y_new = event.y
+        if self.pressed_on_point_head:
+            new_point = point._replace(x=x_new, y=y_new)
+        else:
+            new_point = point._replace(x2=x_new, y2=y_new)
+        self.point_list.remove(point)
+        self.point_list.append(new_point)
+        self.change_size_in_summary(point, new_point)
+        self.update_summary()
+        return new_point
+
+    def change_size_in_summary(self, point_old, point_new):
+        size_old = self.get_size(point_old)
+        size_new = self.get_size(point_new)
+        key = self.current_image + '--' + point_old.type
+        summary = self.point_summary_dict.get(key)
+        new_summary = self.summary_values(summary.amount,
+                                          summary.size + size_new - size_old,
+                                          summary.color)
+        self.point_summary_dict[key] = new_summary
 
     def update_summary(self):
         self.gtk_point_summary_list.clear()
