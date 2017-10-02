@@ -1024,7 +1024,7 @@ class Handler:
         status_string = 'points saved'
         self.status_bar.push(self.status_msg, status_string)
         self.points_saved = True
-        header = ['image', 'type', 'x', 'y', 'size', 'angle',
+        header = ['image', 'type', 'x1', 'y1', 'x2', 'y2', 'box'
                   'red', 'green', 'blue', 'alpha']
         with open(filename, 'w') as csv_file:
             writer = csv.writer(csv_file)
