@@ -16,7 +16,7 @@ ImageAnnotater is an annotation tool to label images with bounding boxes, points
 
 ### Usage
 
-```python
+```
 python3 annotateImages.py [-h] [-i str] [-t str] [-p str]
 
   GUI to annotate images.
