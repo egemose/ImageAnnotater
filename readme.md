@@ -17,7 +17,7 @@ ImageAnnotater is an annotation tool to label images with bounding boxes, points
 ### Usage
 
 ```
-python3 annotateImages.py [-h] [-i str] [-t str] [-p str]
+python annotateImages.py [-h] [-i str] [-t str] [-p str]
 
   GUI to annotate images.
 
@@ -47,8 +47,10 @@ save as can be achieved by (ctrl-shift-S)
 Use the up and down arrows button (8. button) to switch between the original
  image and a computer segmented image. (ctrl-<)
 
+Use the 10. button to switch between making lines and bounding boxes. (ctrl-B)
+
 left click to make a marking or left drag to make a size marking.
-right click to remove a marking or size marking (with the mouse over the big circle).
+right click to remove a marking or size marking (with the mouse over one of the circles).
 ctrl left click also removes markings.
 Middle click and drag to scroll.
 
@@ -59,7 +61,7 @@ the mouse wheel when over the slider.
 Page Up, Page Down, Home, End and ctrl-arrow-key can also be used to zoom.
 (can happen that the slider need to be click beforehand)
 Zooming can take some time and the progress bar to the left will show the
-progress and display "done".
+progress and display "done" when it is finished.
 
 To the left is a table holding a summary of the different images and
 how many points that have been added and of what type.
