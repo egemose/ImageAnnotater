@@ -1,4 +1,4 @@
-# ImageAnnotater
+# ImageAnnotater [![DOI](https://zenodo.org/badge/105534228.svg)](https://zenodo.org/badge/latestdoi/105534228)
 
 ImageAnnotater is an annotation tool to label images with bounding boxes, points, or lines in a quick way.
 
