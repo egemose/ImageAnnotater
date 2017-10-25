@@ -311,13 +311,8 @@ class Handler:
 
     def do_draw_markings_when_idle(self):
         while self.do_run_idle_tasks:
-            if self.do_drag:
-                pass
-            elif self.do_scroll:
-                pass
-            elif self.slider_pressed:
-                pass
-            else:
+            if not self.do_drag and not self.do_scroll and \
+                    not self.slider_pressed:
                 self.draw_markings()
             yield True
         yield False
@@ -407,7 +402,7 @@ class Handler:
     def zoom_slide_pressed(self, scale, event):
         self.slider_pressed = True
 
-    def zoom_slide_release(self, scale=None, event=None):
+    def zoom_slide_release(self, scale, event):
         self.slider_pressed = False
         self.check_zoom_range()
         self.zoom()
@@ -597,18 +592,18 @@ class Handler:
     def add_remove_point(self, event_box, event):
         if event.type == Gdk.EventType.BUTTON_PRESS:
             self.some_button_pressed = True
-            if event.button == 1:
-                if event.state & Gdk.ModifierType.CONTROL_MASK:
-                    self.remove_marking(event)
-                else:
-                    if event.type == Gdk.EventType.BUTTON_PRESS:
-                        self.pressed_on_point = self.find_closest_point(event)
-                    if self.some_button_pressed and not self.pressed_on_point:
-                        self.add_marking(event)
-            elif event.button == 2:
-                self.button_scroll(event)
-            elif event.button == 3:
+        if event.button == 1:
+            if event.state & Gdk.ModifierType.CONTROL_MASK:
                 self.remove_marking(event)
+            else:
+                if event.type == Gdk.EventType.BUTTON_PRESS:
+                    self.pressed_on_point = self.find_closest_point(event)
+                if self.some_button_pressed and not self.pressed_on_point:
+                    self.add_marking(event)
+        elif event.button == 2:
+            self.button_scroll(event)
+        elif event.button == 3:
+            self.remove_marking(event)
         if event.type == Gdk.EventType.BUTTON_RELEASE:
             self.pressed_on_point_head = False
             self.pressed_on_point_tail = False
@@ -629,17 +624,19 @@ class Handler:
         dist_keep = 1000000
         p_keep = None
         for p in self.point_list:
-            dist = sqrt((p.x - scaled_p[0])**2 + (p.y - scaled_p[1])**2)
+            dist_head = sqrt((p.x - scaled_p[0])**2 + (p.y - scaled_p[1])**2)
+            if p.x2 is not None:
+                dist_tail = sqrt((p.x2-scaled_p[0])**2 + (p.y2-scaled_p[1])**2)
+            else:
+                dist_tail = 1000000
+            dist = min(dist_head, dist_tail)
             if dist < dist_keep:
                 dist_keep = dist
                 p_keep = p
-                self.pressed_on_point_head = True
-        for p in self.point_list:
-            if p.x2 is not None:
-                dist = sqrt((p.x2 - scaled_p[0])**2 + (p.y2 - scaled_p[1])**2)
-                if dist < dist_keep:
-                    dist_keep = dist
-                    p_keep = p
+                if dist == dist_head:
+                    self.pressed_on_point_head = True
+                    self.pressed_on_point_tail = False
+                else:
                     self.pressed_on_point_tail = True
                     self.pressed_on_point_head = False
         dist_keep = self.scale_to_zoom(dist_keep)
@@ -667,19 +664,24 @@ class Handler:
             angle = atan2(-(p.y2-p.y), (p.x2-p.x)) / pi * 180
             return angle
 
-    def remove_marking(self, event):
+    def check_if_clicked_on_marking(self, event):
         if self.point_type is not None:
             if self.check_if_click(event):
                 if self.find_closest_point(event):
-                    self.points_saved = False
-                    self.point_list.remove(self.point_clicked)
-                    label_text = 'removed: (%i, %i)' % (int(event.x), int(event.y))
-                    self.update_label(label_text)
-                    self.make_new_summary(self.point_clicked, add=False)
-                    self.update_summary()
+                    return True
         else:
             status_string = 'No point types loaded!'
             self.status_bar.push(self.status_msg, status_string)
+        return False
+
+    def remove_marking(self, event):
+        if self.check_if_clicked_on_marking(event):
+            self.points_saved = False
+            self.point_list.remove(self.point_clicked)
+            label_text = 'removed: (%i, %i)' % (int(event.x), int(event.y))
+            self.update_label(label_text)
+            self.make_new_summary(self.point_clicked, add=False)
+            self.update_summary()
 
     def update_label(self, text):
         self.last_entry_label.set_text(text)
@@ -817,28 +819,22 @@ class Handler:
         cr = cairo.Context(surface)
         Gdk.cairo_set_source_pixbuf(cr, self.draw_buf_temp, 0, 0)
         cr.paint()
-        cr.set_source_rgba(point.r,
-                           point.g,
-                           point.b,
-                           point.a)
-        x, y, x2, y2 = self.shift_coordinates(point)
-        self.draw_circle(cr, x, y)
+        cr.set_source_rgba(point.r, point.g, point.b, point.a)
+        args = self.shift_coordinates(point)
+        self.draw_circle(cr, args[0], args[1])
         if self.do_draw_bounding_boxes:
-            self.draw_box(cr, x, x2, y, y2)
+            self.draw_box(cr, *args)
         else:
-            self.draw_line(cr, x, x2, y, y2)
+            self.draw_line(cr, *args)
         surface = cr.get_target()
         draw_buf = Gdk.pixbuf_get_from_surface(surface, 0, 0, width, height)
         self.draw_temp.image.set_from_pixbuf(draw_buf)
 
     def shift_coordinates(self, point):
-        offset_x = self.h_adjust.get_value()
-        offset_y = self.v_adjust.get_value()
-        x = int(point.x - offset_x)
-        y = int(point.y - offset_y)
-        x2 = int(point.x2 - offset_x)
-        y2 = int(point.y2 - offset_y)
-        return x, y, x2, y2
+        offset = (self.h_adjust.get_value(), self.v_adjust.get_value())
+        args = (point.x - offset[0], point.y - offset[1],
+                point.x2 - offset[0], point.y2 - offset[1])
+        return args
 
     def get_draw_coordinate(self, p):
         offset = (self.h_adjust.get_value(), self.v_adjust.get_value(),
@@ -858,13 +854,13 @@ class Handler:
         for point in self.point_list:
             if point.image == self.current_image or \
                     self.override_point_image_match:
-                x, y, x2, y2 = self.get_draw_coordinate(point)
+                args = self.get_draw_coordinate(point)
                 cr.set_source_rgba(point.r, point.g, point.b, point.a)
-                self.draw_circle(cr, x, y)
+                self.draw_circle(cr, args[0], args[1])
                 if point.box:
-                    self.draw_box(cr, x, x2, y, y2)
-                elif x2 is not None:
-                    self.draw_line(cr, x, x2, y, y2)
+                    self.draw_box(cr, *args)
+                elif args[3] is not None:
+                    self.draw_line(cr, *args)
         surface = cr.get_target()
         draw_buf = Gdk.pixbuf_get_from_surface(surface, 0, 0, width, height)
         draw.image.set_from_pixbuf(draw_buf)
@@ -873,7 +869,7 @@ class Handler:
         cr.arc(x, y, self.radius, 0, 2 * pi)
         cr.fill()
 
-    def draw_line(self, cr, x, x2, y, y2):
+    def draw_line(self, cr, x, y, x2, y2):
         cr.move_to(x, y)
         cr.line_to(x2, y2)
         cr.set_line_width(3)
@@ -881,7 +877,7 @@ class Handler:
         cr.arc(x2, y2, self.radius / 2, 0, 2 * pi)
         cr.fill()
 
-    def draw_box(self, cr, x, x2, y, y2):
+    def draw_box(self, cr, x, y, x2, y2):
         cr.move_to(x, y)
         cr.line_to(x, y2)
         cr.line_to(x2, y2)
@@ -1030,8 +1026,7 @@ class Handler:
             writer = csv.writer(csv_file)
             writer.writerow(header)
             for p in self.point_list:
-                writer.writerow([p.image, p.type, p.x, p.y, p.x2, p.y2, p.box,
-                                 p.r, p.g, p.b, p.a])
+                writer.writerow(p)
 
     def load_points(self, filename):
         self.current_point_file = filename
@@ -1051,34 +1046,33 @@ class Handler:
         self.points_saved = True
         self.draw_markings()
 
+    @staticmethod
+    def point_parser(row):
+        args = []
+        for data in row:
+            try:
+                args.append(float(data))
+            except ValueError:
+                if data == 'True':
+                    args.append(True)
+                elif data == 'False':
+                    args.append(False)
+                elif not data:
+                    args.append(None)
+                else:
+                    args.append(data)
+        return args
+
     def points_parser(self, reader):
         image_point_match = False
         for row in reader:
             if not row:
                 pass
             else:
-                image = row[0]
-                if image == self.current_image:
+                args = self.point_parser(row)
+                if args[0] == self.current_image:
                     image_point_match = True
-                point_type = row[1]
-                x = float(row[2])
-                y = float(row[3])
-                if row[4] != '':
-                    x2 = float(row[4])
-                    y2 = float(row[5])
-                else:
-                    x2 = None
-                    y2 = None
-                if row[6] == 'True':
-                    box = True
-                else:
-                    box = False
-                r = float(row[7])
-                g = float(row[8])
-                b = float(row[9])
-                a = float(row[10])
-                self.point_list.append(self.point(image, point_type, x, y,
-                                                  x2, y2, box, r, g, b, a))
+                self.point_list.append(self.point(*args))
         return image_point_match
 
     def make_summary_dict(self):
