@@ -746,8 +746,8 @@ class Handler:
 
     def move_marking_live(self, event):
         point = self.point_clicked
-        x_new = event.x
-        y_new = event.y
+        x_new = event.x / (self.zoom_percent / 100)
+        y_new = event.y / (self.zoom_percent / 100)
         if self.pressed_on_point_head:
             new_point = point._replace(x=x_new, y=y_new)
         else:
