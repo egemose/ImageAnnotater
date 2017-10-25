@@ -426,6 +426,23 @@ class Handler:
         y_updated = y_updated + event.delta_y * self.scroll_speed
         self.v_adjust.set_value(y_updated)
 
+    def scale_to_zoom(self, *numbers, divide=False, offset=None):
+        if divide:
+            factor = 100 / self.zoom_percent
+        else:
+            factor = self.zoom_percent / 100
+        if offset is None:
+            offset = (0,) * len(numbers)
+        if len(numbers) == 1:
+            return numbers[0] * factor + offset[0]
+        args_out = []
+        for n, o in zip(numbers, offset):
+            if n is None:
+                args_out.append(None)
+            else:
+                args_out.append(n * factor + o)
+        return args_out
+
     def zoom_mouse_wheel(self, event):
         if event.delta_y == 1:
             self.zoom_percent = self.zoom_percent - 10
@@ -458,8 +475,7 @@ class Handler:
         progress = 0
         self.progress_bar.set_fraction(0.0)
         yield True
-        width = self.image_width * (self.zoom_percent / 100)
-        height = self.image_height * (self.zoom_percent / 100)
+        width, height = self.scale_to_zoom(self.image_width, self.image_height)
         self.layout.set_size(width, height)
         for bi in self.buffers_and_images.values():
             try:
@@ -569,39 +585,30 @@ class Handler:
             self.point_clicked = self.move_marking_live(event)
 
     def make_point(self, x, y, x2=None, y2=None, box=False):
-        point = self.point(self.current_image,
-                           self.point_type,
-                           x,
-                           y,
-                           x2,
-                           y2,
-                           box,
-                           self.point_type_color.r,
-                           self.point_type_color.g,
-                           self.point_type_color.b,
-                           self.point_type_color.a)
+        args = (self.current_image, self.point_type, x, y, x2, y2, box)
+        point = self.point(*args, *self.point_type_color)
         return point
 
     def make_line_marking(self, event):
-        point = self.make_point(self.pressed_x, self.pressed_y, event.x,
-                                event.y)
+        args = (self.pressed_x, self.pressed_y, event.x, event.y)
+        point = self.make_point(*args)
         self.draw_live(point)
 
     def add_remove_point(self, event_box, event):
         if event.type == Gdk.EventType.BUTTON_PRESS:
             self.some_button_pressed = True
-        if event.button == 1:
-            if event.state & Gdk.ModifierType.CONTROL_MASK:
+            if event.button == 1:
+                if event.state & Gdk.ModifierType.CONTROL_MASK:
+                    self.remove_marking(event)
+                else:
+                    if event.type == Gdk.EventType.BUTTON_PRESS:
+                        self.pressed_on_point = self.find_closest_point(event)
+                    if self.some_button_pressed and not self.pressed_on_point:
+                        self.add_marking(event)
+            elif event.button == 2:
+                self.button_scroll(event)
+            elif event.button == 3:
                 self.remove_marking(event)
-            else:
-                if event.type == Gdk.EventType.BUTTON_PRESS:
-                    self.pressed_on_point = self.find_closest_point(event)
-                if self.some_button_pressed and not self.pressed_on_point:
-                    self.add_marking(event)
-        elif event.button == 3:
-            self.remove_marking(event)
-        elif event.button == 2:
-            self.button_scroll(event)
         if event.type == Gdk.EventType.BUTTON_RELEASE:
             self.pressed_on_point_head = False
             self.pressed_on_point_tail = False
@@ -618,25 +625,24 @@ class Handler:
             self.move_draw_image()
 
     def find_closest_point(self, point):
-        scaled_x = point.x / (self.zoom_percent / 100)
-        scaled_y = point.y / (self.zoom_percent / 100)
+        scaled_p = self.scale_to_zoom(point.x, point.y, divide=True)
         dist_keep = 1000000
         p_keep = None
         for p in self.point_list:
-            dist = sqrt((p.x - scaled_x) ** 2 + (p.y - scaled_y) ** 2)
+            dist = sqrt((p.x - scaled_p[0])**2 + (p.y - scaled_p[1])**2)
             if dist < dist_keep:
                 dist_keep = dist
                 p_keep = p
                 self.pressed_on_point_head = True
         for p in self.point_list:
             if p.x2 is not None:
-                dist = sqrt((p.x2 - scaled_x) ** 2 + (p.y2 - scaled_y) ** 2)
+                dist = sqrt((p.x2 - scaled_p[0])**2 + (p.y2 - scaled_p[1])**2)
                 if dist < dist_keep:
                     dist_keep = dist
                     p_keep = p
                     self.pressed_on_point_tail = True
                     self.pressed_on_point_head = False
-        dist_keep = dist_keep * (self.zoom_percent / 100)
+        dist_keep = self.scale_to_zoom(dist_keep)
         smaller_then_radius = dist_keep < self.radius
         if not smaller_then_radius:
             self.pressed_on_point_tail = False
@@ -718,12 +724,13 @@ class Handler:
 
     def add_size_mark(self, event):
         self.points_saved = False
+        args = self.scale_to_zoom(self.pressed_x,
+                                  self.pressed_y,
+                                  event.x,
+                                  event.y,
+                                  divide=True)
         box = self.do_draw_bounding_boxes
-        point = self.make_point(self.pressed_x / (self.zoom_percent / 100),
-                                self.pressed_y / (self.zoom_percent / 100),
-                                event.x / (self.zoom_percent / 100),
-                                event.y / (self.zoom_percent / 100),
-                                box)
+        point = self.make_point(*args, box)
         self.point_list.append(point)
         label_text = '%s %i px, %i degrees' % (self.point_type,
                                                int(self.get_size(point)),
@@ -734,8 +741,8 @@ class Handler:
 
     def add_point(self, event):
         self.points_saved = False
-        point = self.make_point(event.x / (self.zoom_percent / 100),
-                                event.y / (self.zoom_percent / 100))
+        args = self.scale_to_zoom(event.x, event.y, divide=True)
+        point = self.make_point(*args)
         self.point_list.append(point)
         label_text = '%s (%i, %i)' % (self.point_type,
                                       int(point.x),
@@ -746,12 +753,11 @@ class Handler:
 
     def move_marking_live(self, event):
         point = self.point_clicked
-        x_new = event.x / (self.zoom_percent / 100)
-        y_new = event.y / (self.zoom_percent / 100)
+        new_coord = self.scale_to_zoom(event.x, event.y)
         if self.pressed_on_point_head:
-            new_point = point._replace(x=x_new, y=y_new)
+            new_point = point._replace(x=new_coord[0], y=new_coord[1])
         else:
-            new_point = point._replace(x2=x_new, y2=y_new)
+            new_point = point._replace(x2=new_coord[0], y2=new_coord[1])
         self.point_list.remove(point)
         self.point_list.append(new_point)
         self.change_size_in_summary(point, new_point)
@@ -835,16 +841,10 @@ class Handler:
         return x, y, x2, y2
 
     def get_draw_coordinate(self, p):
-        offset_x = self.h_adjust.get_value()
-        offset_y = self.v_adjust.get_value()
-        x = int(p.x * (self.zoom_percent / 100) - offset_x)
-        y = int(p.y * (self.zoom_percent / 100) - offset_y)
-        if p.x2 is None:
-            return x, y, None, None
-        else:
-            x2 = int(p.x2 * (self.zoom_percent / 100) - offset_x)
-            y2 = int(p.y2 * (self.zoom_percent / 100) - offset_y)
-            return x, y, x2, y2
+        offset = (self.h_adjust.get_value(), self.v_adjust.get_value(),
+                  self.h_adjust.get_value(), self.v_adjust.get_value())
+        args = self.scale_to_zoom(p.x, p.y, p.x2, p.y2, offset=offset)
+        return args
 
     def draw_markings(self):
         draw = self.draw_image_and_buf
