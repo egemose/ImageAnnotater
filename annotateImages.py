@@ -6,6 +6,7 @@ from math import sqrt, pi, atan2
 import platform
 import cairo
 import gi
+import numpy as np
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gdk, Gio, GdkPixbuf, GObject
 
@@ -120,10 +121,10 @@ class App(Gtk.Application):
         self.handler.open_next_image(self.handler.next_image_button)
 
     def on_switch_image(self, action, param):
-        self.handler.switch_image_shortcut()
+        self.handler.switch_things_shortcut(self.handler.switch_image_button)
 
     def on_switch_bounding_box(self, action, param):
-        self.handler.switch_bounding_box_shortcut()
+        self.handler.switch_things_shortcut(self.handler.switch_box_button)
 
     def on_zoom_out(self, action, param):
         self.handler.zoom_pressed(self.handler.zoom_out_button)
@@ -268,7 +269,6 @@ class Handler:
         self.do_scroll = False
         self.do_drag = False
         self.pressed_on_point = False
-        self.some_button_pressed = False
         self.pressed_on_point_head = False
         self.pressed_on_point_tail = False
         self.point_clicked = None
@@ -549,19 +549,13 @@ class Handler:
         else:
             self.save_points(self.current_point_file)
 
-    def switch_image_shortcut(self):
-        if self.switch_image_button.get_sensitive():
-            if self.switch_image_button.get_active():
-                self.switch_image_button.set_active(False)
+    @staticmethod
+    def switch_things_shortcut(button):
+        if button.get_sensitive():
+            if button.get_active():
+                button.set_active(False)
             else:
-                self.switch_image_button.set_active(True)
-
-    def switch_bounding_box_shortcut(self):
-        if self.switch_box_button.get_sensitive():
-            if self.switch_box_button.get_active():
-                self.switch_box_button.set_active(False)
-            else:
-                self.switch_box_button.set_active(True)
+                button.set_active(True)
 
     def switch_point_type(self, key_name):
         try:
@@ -590,24 +584,17 @@ class Handler:
         self.draw_live(point)
 
     def add_remove_point(self, event_box, event):
-        if event.type == Gdk.EventType.BUTTON_PRESS:
-            self.some_button_pressed = True
         if event.button == 1:
             if event.state & Gdk.ModifierType.CONTROL_MASK:
                 self.remove_marking(event)
             else:
-                if event.type == Gdk.EventType.BUTTON_PRESS:
-                    self.pressed_on_point = self.find_closest_point(event)
-                if self.some_button_pressed and not self.pressed_on_point:
+                self.pressed_on_point = self.find_closest_point(event)
+                if not self.pressed_on_point:
                     self.add_marking(event)
         elif event.button == 2:
             self.button_scroll(event)
         elif event.button == 3:
             self.remove_marking(event)
-        if event.type == Gdk.EventType.BUTTON_RELEASE:
-            self.pressed_on_point_head = False
-            self.pressed_on_point_tail = False
-            self.some_button_pressed = False
         self.draw_markings()
 
     def button_scroll(self, event):
@@ -621,14 +608,11 @@ class Handler:
 
     def find_closest_point(self, point):
         scaled_p = self.scale_to_zoom(point.x, point.y, divide=True)
-        dist_keep = 1000000
+        dist_keep = np.inf
         p_keep = None
         for p in self.point_list:
-            dist_head = sqrt((p.x - scaled_p[0])**2 + (p.y - scaled_p[1])**2)
-            if p.x2 is not None:
-                dist_tail = sqrt((p.x2-scaled_p[0])**2 + (p.y2-scaled_p[1])**2)
-            else:
-                dist_tail = 1000000
+            dist_head = self.get_size(p, scaled_p)
+            dist_tail = self.get_size(p, scaled_p, head=False)
             dist = min(dist_head, dist_tail)
             if dist < dist_keep:
                 dist_keep = dist
@@ -641,27 +625,36 @@ class Handler:
                     self.pressed_on_point_head = False
         dist_keep = self.scale_to_zoom(dist_keep)
         smaller_then_radius = dist_keep < self.radius
-        if not smaller_then_radius:
-            self.pressed_on_point_tail = False
-            self.pressed_on_point_head = False
-        else:
+        if smaller_then_radius:
             self.point_clicked = p_keep
         return smaller_then_radius
 
     @staticmethod
-    def get_size(p):
-        if p.x2 is None:
-            return 0
+    def get_size(marking, point=None, head=True):
+        x1 = marking[2]
+        y1 = marking[3]
+        if point is None:
+            x2 = marking[4]
+            y2 = marking[5]
+            if x2 is None:
+                return 0
         else:
-            size = sqrt((p.x2-p.x) ** 2 + (p.y2-p.y) ** 2)
-            return size
+            x2 = point[0]
+            y2 = point[1]
+            if not head:
+                x1 = marking[4]
+                y1 = marking[5]
+                if x1 is None:
+                    return np.inf
+        return sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
 
     @staticmethod
-    def get_angle(p):
-        if p.x2 is None:
+    def get_angle(marking):
+        if marking.x2 is None:
             return 0
         else:
-            angle = atan2(-(p.y2-p.y), (p.x2-p.x)) / pi * 180
+            angle = atan2(-(marking.y2 - marking.y),
+                          (marking.x2 - marking.x)) / pi * 180
             return angle
 
     def check_if_clicked_on_marking(self, event):
