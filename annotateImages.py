@@ -435,7 +435,7 @@ class Handler:
             if n is None:
                 args_out.append(None)
             else:
-                args_out.append(n * factor + o)
+                args_out.append(n * factor - o)
         return args_out
 
     def zoom_mouse_wheel(self, event):
