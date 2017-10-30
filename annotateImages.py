@@ -568,9 +568,9 @@ class Handler:
     def mouse_move(self, event_box, event):
         if self.do_drag:
             self.make_line_marking(event)
-        if self.do_scroll:
+        elif self.do_scroll:
             self.scroll(event)
-        if self.pressed_on_point:
+        elif self.pressed_on_point:
             self.point_clicked = self.move_marking_live(event)
 
     def make_point(self, x, y, x2=None, y2=None, box=False):
@@ -589,7 +589,7 @@ class Handler:
                 self.remove_marking(event)
             else:
                 self.pressed_on_point = self.find_closest_point(event)
-                if not self.pressed_on_point:
+                if not self.pressed_on_point or self.do_drag:
                     self.add_marking(event)
         elif event.button == 2:
             self.button_scroll(event)
@@ -611,18 +611,19 @@ class Handler:
         dist_keep = np.inf
         p_keep = None
         for p in self.point_list:
-            dist_head = self.get_size(p, scaled_p)
-            dist_tail = self.get_size(p, scaled_p, head=False)
-            dist = min(dist_head, dist_tail)
-            if dist < dist_keep:
-                dist_keep = dist
-                p_keep = p
-                if dist == dist_head:
-                    self.pressed_on_point_head = True
-                    self.pressed_on_point_tail = False
-                else:
-                    self.pressed_on_point_tail = True
-                    self.pressed_on_point_head = False
+            if p.image == self.current_image:
+                dist_head = self.get_size(p, scaled_p)
+                dist_tail = self.get_size(p, scaled_p, head=False)
+                dist = min(dist_head, dist_tail)
+                if dist < dist_keep:
+                    dist_keep = dist
+                    p_keep = p
+                    if dist == dist_head:
+                        self.pressed_on_point_head = True
+                        self.pressed_on_point_tail = False
+                    else:
+                        self.pressed_on_point_tail = True
+                        self.pressed_on_point_head = False
         dist_keep = self.scale_to_zoom(dist_keep)
         smaller_then_radius = dist_keep < self.radius
         if smaller_then_radius:
