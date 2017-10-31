@@ -429,7 +429,7 @@ class Handler:
         if offset is None:
             offset = (0,) * len(numbers)
         if len(numbers) == 1:
-            return numbers[0] * factor + offset[0]
+            return numbers[0] * factor - offset[0]
         args_out = []
         for n, o in zip(numbers, offset):
             if n is None:
@@ -439,15 +439,18 @@ class Handler:
         return args_out
 
     def zoom_mouse_wheel(self, event):
+        x, y = self.scale_to_zoom(event.x, event.y)
         if event.delta_y == 1:
             self.zoom_percent = self.zoom_percent - 10
         elif event.delta_y == -1:
             self.zoom_percent = self.zoom_percent + 10
         self.check_zoom_range()
-        self.pressed_x = event.x
-        self.pressed_y = event.y
         self.zoom()
-        self.scroll(event)
+        delta_x = self.scale_to_zoom(event.x) - x
+        delta_y = self.scale_to_zoom(event.y) - y
+        delta_x = self.scale_to_zoom(delta_x, divide=True)
+        delta_y = self.scale_to_zoom(delta_y, divide=True)
+        self.scroll(delta_x, delta_y, delta=True)
         self.move_draw_image()
 
     def zoom_pressed(self, button):
@@ -512,11 +515,15 @@ class Handler:
         y = self.v_adjust.get_value()
         self.layout.move(self.draw_image, x, y)
 
-    def scroll(self, event):
+    def scroll(self, x, y, *, delta=False):
         scroll_x = self.h_adjust.get_value()
         scroll_y = self.v_adjust.get_value()
-        change_x = self.pressed_x - event.x
-        change_y = self.pressed_y - event.y
+        if delta:
+            change_x = x
+            change_y = y
+        else:
+            change_x = self.pressed_x - x
+            change_y = self.pressed_y - y
         new_scroll_x = scroll_x + change_x
         self.h_adjust.set_value(new_scroll_x)
         new_scroll_y = scroll_y + change_y
@@ -569,7 +576,7 @@ class Handler:
         if self.do_drag:
             self.make_line_marking(event)
         elif self.do_scroll:
-            self.scroll(event)
+            self.scroll(event.x, event.y)
         elif self.pressed_on_point:
             self.point_clicked = self.move_marking_live(event)
 
@@ -612,8 +619,8 @@ class Handler:
         p_keep = None
         for p in self.point_list:
             if p.image == self.current_image:
-                dist_head = self.get_size(p, scaled_p)
-                dist_tail = self.get_size(p, scaled_p, head=False)
+                dist_head = self.get_dist(p, scaled_p)
+                dist_tail = self.get_dist(p, scaled_p, head=False)
                 dist = min(dist_head, dist_tail)
                 if dist < dist_keep:
                     dist_keep = dist
@@ -631,7 +638,7 @@ class Handler:
         return smaller_then_radius
 
     @staticmethod
-    def get_size(marking, point=None, head=True):
+    def get_dist(marking, point=None, head=True):
         x1 = marking[2]
         y1 = marking[3]
         if point is None:
@@ -687,7 +694,7 @@ class Handler:
             sign = -1
         key = self.current_image + '--' + point.type
         summary = self.point_summary_dict.get(key)
-        size = self.get_size(point)
+        size = self.get_dist(point)
         new_summary = self.summary_values(summary.amount + sign*1,
                                           summary.size + sign*size,
                                           summary.color)
@@ -729,7 +736,7 @@ class Handler:
         point = self.make_point(*args, box)
         self.point_list.append(point)
         label_text = '%s %i px, %i degrees' % (self.point_type,
-                                               int(self.get_size(point)),
+                                               int(self.get_dist(point)),
                                                int(self.get_angle(point)))
         self.update_label(label_text)
         self.make_new_summary(point, add=True)
@@ -761,8 +768,8 @@ class Handler:
         return new_point
 
     def change_size_in_summary(self, point_old, point_new):
-        size_old = self.get_size(point_old)
-        size_new = self.get_size(point_new)
+        size_old = self.get_dist(point_old)
+        size_new = self.get_dist(point_new)
         key = self.current_image + '--' + point_old.type
         summary = self.point_summary_dict.get(key)
         new_summary = self.summary_values(summary.amount,
@@ -1074,7 +1081,7 @@ class Handler:
         for p in self.point_list:
             color = self.rgba_color_to_hex(p)
             key = p.image + '--' + p.type
-            size = self.get_size(p)
+            size = self.get_dist(p)
             if key not in self.point_summary_dict:
                 values = self.summary_values(1, size, color)
             else:
