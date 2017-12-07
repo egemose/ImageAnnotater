@@ -2,7 +2,7 @@
 
 ImageAnnotater is an annotation tool to label images with bounding boxes, points, or lines in a quick way.
 
-## Getting Started
+## Getting Started Ubuntu
 
 ### Prerequisites
 
@@ -11,10 +11,24 @@ ImageAnnotater is an annotation tool to label images with bounding boxes, points
 
 ### Installation
 
-* open a terminal in the folder where OdmConverter shall be.
+* Open a terminal in the folder where OdmConverter shall be.
 * Clone the repository:  `git clone git@github.com:egemose/ImageAnnotater.git`
 
-### Usage
+## Getting Started Mac
+
+### Prerequisites
+
+* Install homebrew (https://brew.sh/)
+* Install python3 with homebrew `brew install python3`
+* Install PyGObject with homebrew `brew install pygobject3 --with-python3 gtk+3`
+* Install gnome-icon-theme with homebrew `brew install gnome-icon-theme`
+
+### Installation
+
+* Open a terminal in the folder where OdmConverter shall be.
+* Clone the repository:  `git clone git@github.com:egemose/ImageAnnotater.git`
+
+## Usage
 
 ```
 python annotateImages.py [-h] [-i str] [-t str] [-p str]
@@ -28,7 +42,7 @@ python annotateImages.py [-h] [-i str] [-t str] [-p str]
     -p str, --points str  File of saved points in csv (str).
 ```
 
-#### GUI usage:
+### GUI usage:
 
 Open a image directory with the first button in the toolbox (ctrl-O)
 or only a single image with the next button. (ctrl-I)
