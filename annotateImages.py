@@ -227,6 +227,8 @@ class Handler:
         self.scroll_window = gui_builder.get_object('scroll_window')
         self.v_adjust = self.scroll_window.get_vadjustment()
         self.h_adjust = self.scroll_window.get_hadjustment()
+        self.v_adjust_value = 0
+        self.h_adjust_value = 0
         self.layout = gui_builder.get_object('layout')
         self.draw_image = gui_builder.get_object('draw_image')
         self.draw_image_and_buf = self. buf_and_image(
@@ -302,6 +304,18 @@ class Handler:
         self.do_run_idle_tasks = True
         task = self.do_draw_markings_when_idle()
         GObject.idle_add(task.__next__)
+        task2 = self.do_move_draw_image_if_scrolled()
+        GObject.idle_add(task2.__next__)
+
+    def do_move_draw_image_if_scrolled(self):
+        while self.do_run_idle_tasks:
+            if self.v_adjust.get_value() != self.v_adjust_value or self.h_adjust.get_value != self.h_adjust_value:
+                self.v_adjust_value = self.v_adjust.get_value()
+                self.h_adjust_value = self.h_adjust.get_value()
+                self.move_draw_image()
+                self.draw_markings()
+            yield True
+        yield False
 
     def set_cursor(self, cursor_type=None):
         cursor = Gdk.Cursor(Gdk.CursorType.ARROW)
